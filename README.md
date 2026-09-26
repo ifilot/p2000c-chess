@@ -10,6 +10,13 @@ the text plane carries the panel with the clock and the last moves. The
 user interface is in Dutch. You choose your colour and one of three levels
 at the start.
 
+> [!NOTE]
+> **More P2000C games:** Check out [Battleship](https://github.com/ifilot/p2000c-battleship),
+> [Minesweeper](https://github.com/ifilot/p2000c-minesweeper),
+> [Othello](https://github.com/ifilot/p2000c-othello), and
+> [Tetris](https://github.com/ifilot/p2000c-tetris). For an all-in-one setup
+> containing all five games, see the [P2000C ZuluBlaster SASI drive distribution](https://github.com/ifilot/p2000c-zulublaster-sasi-drive).
+
 <p align="center">
   <img src="docs/splash.png" alt="Title picture" width="48%">
   <img src="docs/start.png" alt="Start screen" width="48%">
