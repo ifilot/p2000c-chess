@@ -31,10 +31,12 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Check the rules (perft) and the engine (self-play) natively
+      - name: Check the rules (perft), the engine (self-play), FEN and QR codes natively
         run: |
+          pip install zxing-cpp pillow
           make perft
           make selfplay
+          make qrtest
 
       - name: Pull the Z88DK toolchain image
         run: docker pull z88dk/z88dk
@@ -48,8 +50,8 @@ jobs:
       - name: Package
         run: |
           mkdir -p release
-          cp build/SCHAKEN.COM build/SCHAKEN.GFX build/HD1_256.hda LICENSE README.md release/
-          cd release && zip -9 ../p2000c-chess.zip SCHAKEN.COM SCHAKEN.GFX HD1_256.hda LICENSE README.md
+          cp build/SCHAKEN.COM build/SCHAKEN.GFX build/HD1_256.hda LICENSE README.md CHANGELOG.md release/
+          cd release && zip -9 ../p2000c-chess.zip SCHAKEN.COM SCHAKEN.GFX HD1_256.hda LICENSE README.md CHANGELOG.md
           sha256sum ../p2000c-chess.zip SCHAKEN.COM SCHAKEN.GFX HD1_256.hda
 
       - name: Upload build

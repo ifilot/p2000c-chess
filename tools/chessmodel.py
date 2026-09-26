@@ -213,3 +213,21 @@ class Position:
             if all(p == "B" for p in pieces) and len(bishops) == 1:
                 return "Remise"
         return None
+
+    def fen(self):
+        """Forsyth-Edwards Notation, the move number counted from the start."""
+        ranks = []
+        for r in range(7, -1, -1):
+            text, empty = "", 0
+            for f in range(8):
+                p = self.board[8 * r + f]
+                if not p:
+                    empty += 1
+                    continue
+                text += (str(empty) if empty else "") + p
+                empty = 0
+            ranks.append(text + (str(empty) if empty else ""))
+        castling = "".join(c for c in "KQkq" if c in self.castling) or "-"
+        ep = name(self.ep) if self.ep is not None else "-"
+        move = (len(self.history) - 1) // 2 + 1
+        return f"{'/'.join(ranks)} {'w' if self.white else 'b'} {castling} {ep} {self.halfmove} {move}"

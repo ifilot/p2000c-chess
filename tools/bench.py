@@ -20,7 +20,7 @@ MHZ = 4.0
 def run(level, actions):
     cmd = [str(EMULATOR), "--ipl", str(IPL), "--hard-disk-0", str(HD0), "--hard-disk-1", str(ROOT / "build/hd1.hda"),
            "--fast-storage", "--chunk-cycles", "2000", "--wait-for", "A>", "--send", "F:SCHAKEN\\r", *TO_START,
-           "--send", str(level), "--wait-for", "Wit aan zet", "--send", "aaaa\\rw\\r",                          # a2-a3
+           "--send", str(level), "--wait-for", "Wit aan zet", "--send", "aAaA\\rw\\r",                          # a2-a3
            *actions, "--output", "json"]
     state = json.loads(subprocess.run(cmd, capture_output=True, text=True, timeout=900).stdout)
     assert state["status"] == "ok", state.get("message")

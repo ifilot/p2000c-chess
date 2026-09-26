@@ -54,8 +54,8 @@ def make_image(com: Path, out_dir: Path) -> Path:
     return image
 
 
-# let the title picture finish, press a key, then start a level-1 game as White
-TO_START = ["--run", "24000000", "--send", " ", "--wait-for", "Sterkte van de computer"]
+# wait for the title picture's prompt, press a key, then start a level-1 game as White
+TO_START = ["--wait-for", "om verder te gaan", "--send", " ", "--wait-for", "Sterkte van de computer"]
 SKIP_SPLASH = TO_START + ["--send", "1"]
 
 

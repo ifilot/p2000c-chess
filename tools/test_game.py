@@ -9,7 +9,11 @@ computer's replies are read from the move list in the panel, checked for
 legality against tools/chessmodel.py and replayed there; every line of the
 move list and the final verdict must agree with the model. As in the
 Othello tests, the game is replayed from the start for every new computer
-move (the emulator runs are deterministic). Run after `make build`.
+move (the emulator runs are deterministic). A last test opens the FEN
+page (F): the text must be the model's FEN, and the QR code, taken from the
+emulated screen at the CRT's dot pitch, must decode to it (with the
+zxing-cpp Python module; without it the code is not read). Run after
+`make build`.
 """
 import json
 import random
@@ -27,12 +31,13 @@ RESULTS = ("Schaakmat!", "Pat", "Remise")
 PROMO_KEY = {"Q": "d", "R": "t", "B": "l", "N": "p"}
 
 
-def emulate(actions, timeout=1800):
+def emulate(actions, timeout=1800, dump=None):
     cmd = [str(EMULATOR), "--ipl", str(IPL), "--hard-disk-0", str(HD0),
            "--hard-disk-1", str(ROOT / "build/hd1.hda"), "--fast-storage", "--chunk-cycles", "5000",
            "--wait-cycles", "80000000",
-           "--wait-for", "A>", "--send", "F:SCHAKEN\\r", "--run", "24000000", "--send", " ",
-           "--wait-for", "Sterkte van de computer", *actions, "--run", "400000", "--output", "json"]
+           "--wait-for", "A>", "--send", "F:SCHAKEN\\r", "--wait-for", "om verder te gaan", "--send", " ",
+           "--wait-for", "Sterkte van de computer", *actions, "--run", "400000",
+           *(["--dump-graphics", str(dump)] if dump else []), "--output", "json"]
     state = json.loads(subprocess.run(cmd, capture_output=True, text=True, timeout=timeout).stdout)
     flat = "".join(state["screen"])
     rows = [flat[r * 64 + PANEL:(r + 1) * 64] for r in range(21)]
@@ -59,9 +64,13 @@ class Game:
         return (f, 7 - r) if self.white else (7 - f, r)
 
     def keys_to(self, sq):
+        """Cursor keys, alternating lower and upper case: the emulator delivers
+        them at once, and the program drops a key that repeats the previous
+        one within a third of a second (the terminal's doubled keys)."""
         (x0, y0), (x1, y1) = self.screen_xy(self.cursor), self.screen_xy(sq)
         self.cursor = sq
-        return ("d" * (x1 - x0) + "a" * (x0 - x1) + "s" * (y1 - y0) + "w" * (y0 - y1))
+        keys = "d" * (x1 - x0) + "a" * (x0 - x1) + "s" * (y1 - y0) + "w" * (y0 - y1)
+        return "".join(k.upper() if i % 2 else k for i, k in enumerate(keys))
 
     def choose(self):
         moves = self.pos.legal()
@@ -76,7 +85,7 @@ class Game:
             keys += PROMO_KEY[move[2]]
         self.notation.append(self.pos.play(move))
         verdict = self.pos.result()
-        self.actions += ["--send", keys]
+        self.actions += ["--run", "1600000", "--send", keys]   # a human's reaction time first
         if verdict:
             self.actions += ["--wait-for", verdict]
         else:
@@ -156,6 +165,78 @@ def test_take_back():
     return g.cpu_reply()
 
 
+def test_doubled_keys():
+    """"dd" at once counts as one step (a doubled key), a "d" a moment later
+    as another: the cursor goes from e2 to g2, so the pawn move is g2-g4."""
+    actions = ["--send", "1", "--wait-for", "Wit aan zet", "--run", "1600000", "--send", "dd",
+               "--run", "1600000", "--send", "d", "--run", "1600000", "--send", "\\rwW\\r",
+               "--wait-for", "denkt", "--wait-for", "aan zet"]
+    state, rows = emulate(actions)
+    if state["status"] != "ok":
+        return f"emulator: {state['status']} {state.get('message', '')}"
+    shown = listed(rows)
+    if not shown or shown[0] != "g2-g4":
+        return f"first move {shown[:1]}, expected ['g2-g4']"
+    return None
+
+
+FEN_COL, FEN_WIDTH, FEN_ROW = 36, 28, 5
+
+
+def fen_lines(fen):
+    """The FEN as the page breaks it: after a '/' or a space where it can."""
+    lines = []
+    while fen:
+        cut = len(fen)
+        if cut > FEN_WIDTH:
+            cut = max((i + 1 for i in range(FEN_WIDTH) if fen[i] in "/ "), default=FEN_WIDTH)
+        lines.append(fen[:cut].rstrip())
+        fen = fen[cut:]
+    return lines
+
+
+def read_qr(graphics):
+    """Decodes the lit raster at the 3:5 dot pitch; None if nothing is found."""
+    from PIL import Image
+    import zxingcpp
+    raster = Image.new("L", (512, 252), 0)
+    raster.putdata([255 if graphics[y * 64 + x // 8] & (0x80 >> (x & 7)) else 0
+                    for y in range(252) for x in range(512)])
+    found = zxingcpp.read_barcodes(raster.resize((512 * 3, 252 * 5), Image.NEAREST))
+    return found[0].text if found else None
+
+
+def test_fen():
+    """A few moves (a capture and castling rights lost on the way), then F."""
+    g = Game(1, True, 8)
+    for _ in range(4):
+        g.human_move(g.choose())
+        err = g.cpu_reply()
+        if err:
+            return err
+    dump = ROOT / "build/fen.bin"
+    g.actions += ["--send", "f", "--wait-for", "Druk op een toets"]
+    state, _ = emulate(g.actions, dump=dump)
+    if state["status"] != "ok":
+        return f"FEN page: {state['status']} {state.get('message', '')}"
+    flat = "".join(state["screen"])
+    shown = [flat[r * 64 + FEN_COL:(r + 1) * 64].rstrip() for r in range(FEN_ROW, FEN_ROW + 6)]
+    expected = fen_lines(g.pos.fen())
+    if shown[:len(expected)] != expected or any(shown[len(expected):]):
+        return f"FEN page shows {shown}, expected {expected}"
+    try:
+        text = read_qr(dump.read_bytes())
+    except ImportError:
+        print("   (zxing-cpp not installed: QR code not read)")
+    else:
+        if text != g.pos.fen():
+            return f"QR code reads {text!r}, expected {g.pos.fen()!r}"
+    # back to the board, and the game goes on
+    g.actions += ["--run", "1600000", "--send", " ", "--wait-for", "Wit aan zet"]
+    g.human_move(g.choose())
+    return g.cpu_reply()
+
+
 def main():
     make_image(ROOT / "build/SCHAKEN.COM", ROOT / "build")
     ok = True
@@ -168,6 +249,12 @@ def main():
         ok &= err is None
     err = test_take_back()
     print(f"take-back: {'ok' if not err else err}")
+    ok &= err is None
+    err = test_fen()
+    print(f"FEN page: {'ok' if not err else err}")
+    ok &= err is None
+    err = test_doubled_keys()
+    print(f"doubled keys: {'ok' if not err else err}")
     ok &= err is None
     print("PASS" if ok else "FAIL")
     return 0 if ok else 1

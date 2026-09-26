@@ -62,7 +62,7 @@ typedef struct {
     unsigned int hash;                      /* of the position before the move */
 } undo_t;
 
-#define MOVE_STACK 900                      /* generated moves for every ply of a search */
+#define MOVE_STACK 700                      /* generated moves for every ply of a search (self-play peak: 351) */
 #define MAX_HIST   348                      /* game plies plus search plies */
 
 extern unsigned char board[128];              /* page aligned in rules.asm */
@@ -121,5 +121,11 @@ extern unsigned char repetitions(void);
 
 /* Neither side can mate: K v K, K+minor v K, K+B v K+B on one colour. */
 extern unsigned char insufficient_material(void);
+
+/* Writes the position in Forsyth-Edwards Notation (the move number from
+ * hist_len: games start from the standard position); returns its length.
+ * At most FEN_MAX characters (32 pieces, fifty-move count, move 150). */
+#define FEN_MAX 90
+extern unsigned char chess_fen(char *out);
 
 #endif

@@ -414,6 +414,7 @@ unsigned char make_move(const move_t *m)
     if (flags & MF_PROMO) {
         p = me | (flags & MF_PROMO);
         phase += PHASE[flags & MF_PROMO];
+        halfmove = 0;                       /* still a pawn move */
     }
     board[to] = p;
     score += PSQ(p, to);
@@ -548,4 +549,61 @@ unsigned char insufficient_material(void)
         return 1;
     /* only bishops, all on squares of one colour */
     return !(bishop_colours & 4) && bishop_colours != 3;
+}
+
+/* --- FEN ------------------------------------------------------------------------ */
+
+static char *fen_number(char *p, unsigned int n)
+{
+    if (n >= 10)
+        p = fen_number(p, n / 10);
+    *p++ = '0' + n % 10;
+    return p;
+}
+
+unsigned char chess_fen(char *out)
+{
+    static const char LETTER[7] = { 0, 'p', 'n', 'b', 'r', 'q', 'k' };
+    char *p = out;
+    unsigned char rank = 8, file, sq, piece, empty;
+    do {
+        rank--;
+        empty = 0;
+        for (file = 0; file < 8; file++) {
+            sq = SQ(file, rank);
+            piece = board[sq];
+            if (!piece) {
+                empty++;
+                continue;
+            }
+            if (empty)
+                *p++ = '0' + empty;
+            empty = 0;
+            *p++ = COLOUR(piece) == WHITE ? LETTER[TYPE(piece)] - ('a' - 'A') : LETTER[TYPE(piece)];
+        }
+        if (empty)
+            *p++ = '0' + empty;
+        *p++ = rank ? '/' : ' ';
+    } while (rank);
+    *p++ = side == WHITE ? 'w' : 'b';
+    *p++ = ' ';
+    if (!castle)
+        *p++ = '-';
+    if (castle & CASTLE_WK) *p++ = 'K';
+    if (castle & CASTLE_WQ) *p++ = 'Q';
+    if (castle & CASTLE_BK) *p++ = 'k';
+    if (castle & CASTLE_BQ) *p++ = 'q';
+    *p++ = ' ';
+    if (ep == NO_SQ)
+        *p++ = '-';
+    else {
+        *p++ = 'a' + FILE_OF(ep);
+        *p++ = '1' + RANK_OF(ep);
+    }
+    *p++ = ' ';
+    p = fen_number(p, halfmove);
+    *p++ = ' ';
+    p = fen_number(p, hist_len / 2 + 1);
+    *p = 0;
+    return (unsigned char)(p - out);
 }

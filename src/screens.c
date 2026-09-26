@@ -1,11 +1,15 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* screens.c -- the text-mode screens and the title picture.
+/* screens.c -- the text-mode screens, the title picture and the FEN page.
  *
  * The start and help screens use the plain 80x24 text mode (instant); the
  * title picture is a 512x252 bitmap whose run-length data gfx.c reads from
  * SCHAKEN.GFX into the start of the framebuffer. It is unpacked in place
- * once, backwards, and uploaded sparsely.
+ * once, backwards, and uploaded sparsely. The FEN page shows the position
+ * as text and as a QR code, which goes to the terminal line by line
+ * without passing through the framebuffer, so the board picture there
+ * stays intact for the way back.
  */
+#include <string.h>
 #include "video.h"
 #include "chess.h"
 #include "cpu.h"
@@ -14,6 +18,7 @@
 #include "screens.h"
 #include "saver.h"
 #include "splash.h"
+#include "qr.h"
 #include "version.h"
 
 /* Character-ROM glyphs used by the text-mode screens. */
@@ -39,6 +44,7 @@ static const char *const HELP[] = {
     "                        RETURN op het stuk zelf of ESC legt het weer neer",
     "  T of BS               zet terugnemen          H   dit hulpscherm",
     "  N                     nieuwe partij           Q   stoppen (met bevestiging)",
+    "  F                     stelling als FEN-tekst en QR-code (om te analyseren)",
     "",
     "SPELREGELS",
     "  Wit begint. Rokeren: zet de koning twee velden opzij, de toren volgt vanzelf.",
@@ -88,6 +94,98 @@ void help_screen(void)
     redraw_game_screen();
 }
 
+/* --- the position as FEN and QR code ---------------------------------------- */
+
+#define QR_QUIET   4                        /* light modules round the code */
+#define QR_DOTS    6                        /* a module is 6 dots by 4 lines: square on the CRT */
+#define QR_LINES   4
+#define QR_MODULES (QR_SIZE + 2 * QR_QUIET)
+#define QR_BYTES   ((QR_MODULES * QR_DOTS + 7) / 8)
+#define QR_TOP     ((FB_LINES - QR_MODULES * QR_LINES) / 2)
+#define QR_COLUMN  1                        /* byte column of the left edge */
+#define FEN_COL    36                       /* the text, right of the code */
+#define FEN_WIDTH  28
+
+/* The QR matrix, a line of dots and the FEN go in the move stack above the
+ * player's legal moves (never more than 218); the search is idle meanwhile. */
+#define QR_BUFFER  ((unsigned char *)(moves + 256))
+#define QR_ROW     (QR_BUFFER + QR_WORK)
+#define FEN_TEXT   ((char *)QR_ROW + QR_BYTES)
+typedef char qr_buffer_fits[256 * 4 + QR_WORK + QR_BYTES + FEN_MAX + 1 <= MOVE_STACK * 4 ? 1 : -1];
+
+/* The FEN over several lines, broken after a '/' or a space where it can. */
+static void put_fen(void)
+{
+    const char *p = FEN_TEXT;
+    unsigned char row = 5, n, cut;
+    while (*p) {
+        n = (unsigned char)strlen(p);
+        cut = n;
+        if (n > FEN_WIDTH) {
+            cut = FEN_WIDTH;
+            while (cut && p[cut - 1] != '/' && p[cut - 1] != ' ')
+                cut--;
+            if (!cut)
+                cut = FEN_WIDTH;
+        }
+        con_at(ROWCOL(row++, FEN_COL));
+        while (cut--)
+            conout(*p++);
+    }
+}
+
+/* Dark modules unlit, light ones and the quiet zone lit, as on paper. */
+static void send_qr(void)
+{
+    unsigned char *line = QR_ROW, *out, bit, row, col, k, light;
+    const unsigned char *modules;
+    for (row = 0; row < QR_MODULES; row++) {
+        modules = row >= QR_QUIET && row < QR_QUIET + QR_SIZE ? QR_BUFFER + (row - QR_QUIET) * QR_SIZE : 0;
+        memset(line, 0, QR_BYTES);
+        out = line;
+        bit = 0x80;
+        for (col = 0; col < QR_MODULES; col++) {
+            light = !(modules && col >= QR_QUIET && col < QR_QUIET + QR_SIZE && (modules[col - QR_QUIET] & 1));
+            for (k = 0; k < QR_DOTS; k++) {
+                if (light)
+                    *out |= bit;
+                if (!(bit >>= 1)) {
+                    bit = 0x80;
+                    out++;
+                }
+            }
+        }
+        for (k = 0; k < QR_LINES; k++)
+            video_send_row(line, COLROW(QR_COLUMN, QR_TOP + row * QR_LINES + k), QR_BYTES);
+        key_watch();
+    }
+}
+
+static void draw_fen_page(void)
+{
+    video_text();                           /* leaving graphics mode clears the picture */
+    video_graphics();
+    con_at(ROWCOL(3, FEN_COL));  con_puts("STELLING IN FEN-NOTATIE");
+    put_fen();
+    con_at(ROWCOL(11, FEN_COL)); con_puts("Deze tekst staat ook in de");
+    con_at(ROWCOL(12, FEN_COL)); con_puts("QR-code: scan hem met een");
+    con_at(ROWCOL(13, FEN_COL)); con_puts("telefoon en plak hem in een");
+    con_at(ROWCOL(14, FEN_COL)); con_puts("schaakprogramma om de");
+    con_at(ROWCOL(15, FEN_COL)); con_puts("stelling te analyseren.");
+    con_at(ROWCOL(18, FEN_COL)); con_puts("Even geduld...");
+    send_qr();
+    con_at(ROWCOL(18, FEN_COL)); con_puts("Druk op een toets.");
+}
+
+/* The position as FEN and QR code; any key returns to the board. */
+void fen_screen(void)
+{
+    qr_encode(FEN_TEXT, chess_fen(FEN_TEXT), QR_BUFFER);
+    draw_fen_page();
+    wait_key(draw_fen_page);
+    redraw_game_screen();
+}
+
 /* --- title picture ----------------------------------------------------------- */
 
 /* Unpacks the title bitmap in place: the (count, value) pairs at the start
@@ -108,13 +206,19 @@ static void unpack_splash(void)
     }
 }
 
+#define SPLASH_PROMPT "Druk op een toets om verder te gaan"
+
+/* The prompt appears once the picture is complete, in the dark band under
+ * the subtitle (text row 5, lines 60-71). */
 static void draw_splash(void)
 {
     video_graphics();
     flush_sparse();
+    con_at(ROWCOL(5, (64 - (sizeof SPLASH_PROMPT - 1)) / 2));
+    con_puts(SPLASH_PROMPT);
 }
 
-/* Title picture in graphics mode; returns after any key. */
+/* Title picture in graphics mode with a prompt; returns after any key. */
 void splash_screen(void)
 {
     unpack_splash();

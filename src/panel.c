@@ -236,7 +236,7 @@ void draw_panel(void)
         p[7] = '0' + cpu_level;
         p[8] = 0;
         put_row(ROW_LEVEL, line);
-        put_row(ROW_KEYS, "H = hulp");
+        put_row(ROW_KEYS, "H hulp  F FEN");
     }
     put_row(ROW_MOVE, "Zet");
     put_row(ROW_CLOCK, clock_available ? "Tijd" : "");

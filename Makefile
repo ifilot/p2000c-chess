@@ -5,7 +5,7 @@
 # and dist/pro/ disk images) and, for the character-ROM font, p2000c-emulator.
 # `make perft` and `make selfplay` build the rules and the engine natively (gcc).
 
-VERSION    = 1.0.0
+VERSION    = 1.1.1
 BUILD_DATE = $(shell date +%Y-%m-%d)
 
 # sdcc's register-allocation effort. The hot paths are assembly (rules.asm,
@@ -21,15 +21,17 @@ ZCCFLAGS = +cpm -vn -clib=sdcc_iy -O3 -SO2 --opt-code-speed --max-allocs-per-nod
            -Ibuild -create-app -m -pragma-define:CLIB_STDIO_HEAP_SIZE=0 $(EXTRA)
 
 SOURCES = src/main.c src/game.c src/screen.c src/panel.c src/screens.c src/saver.c src/clock.c \
-          src/gfx.c src/chess.c src/cpu.c src/rules.asm src/video.asm src/memory.asm
+          src/gfx.c src/chess.c src/cpu.c src/qr.c src/rules.asm src/video.asm src/memory.asm
 HEADERS = src/video.h src/chess.h src/cpu.h src/game.h src/screen.h src/panel.h src/screens.h \
-          src/saver.h src/clock.h src/gfx.h src/sprites.h src/splash.h src/version.h
+          src/saver.h src/clock.h src/gfx.h src/qr.h src/sprites.h src/splash.h src/version.h
 COM     = build/SCHAKEN.COM
 GFX     = build/SCHAKEN.GFX
 
 # The buffers memory.asm places past the program must end this far below the
-# BDOS entry (E406h on the 62K system), leaving the rest to the stack.
-ARENA_LIMIT = 0xD800
+# BDOS entry (E406h on the 62K system), leaving the rest to the stack: 1.5 KiB.
+# Measured in level-3 games: under 400 bytes; the search's MAX_PLY of 40
+# bounds it at about 1.3 KiB.
+ARENA_LIMIT = 0xDE00
 
 # Deployment image for the SASI emulator (ZuluBlaster): a second-disk image
 # with the standard split layout (E: low, F: high) built with the sibling
@@ -42,7 +44,7 @@ DEPLOY_IMAGE  = build/HD1_256.hda
 HOSTCC = gcc
 HOSTCFLAGS = -O2 -Wall
 
-.PHONY: all build run screenshot test sprites deploy perft zperft selfplay clean
+.PHONY: all build run screenshot test sprites deploy perft zperft selfplay qrtest clean
 
 all: build
 
@@ -97,6 +99,13 @@ selfplay:
 	build/selfplay 1 3 1 7
 	build/selfplay 3 2 1 11
 	build/selfplay 2 3 1 99
+
+# FEN of random games against tools/chessmodel.py, QR codes through a
+# decoder (the zxing-cpp Python module, if installed).
+qrtest:
+	mkdir -p build
+	$(HOSTCC) $(HOSTCFLAGS) -o build/qrdump tools/qrdump.c src/chess.c src/qr.c
+	python3 tools/test_qr.py
 
 # Open the game in the graphical emulator.
 run: build

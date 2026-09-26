@@ -16,6 +16,7 @@
 #include "game.h"
 #include "screen.h"
 #include "sprites.h"
+#include "saver.h"
 
 /* Appearance: the piece (type | colour, below 0x20) plus marker flags. */
 #define SHOW_CURSOR 0x20
@@ -24,7 +25,6 @@
 #define SHOW_NONE   0xFF                    /* never a real appearance: forces a redraw */
 
 static unsigned char shown[64];             /* appearance last composed, per 0..63 square */
-static const unsigned char tile_dark[CELL_BYTES * CELL_H];     /* all zero */
 static unsigned char previous[CELL_BYTES * CELL_H];             /* a square before recomposing */
 
 /* Screen column and row (0 = top) of a 0x88 square. */
@@ -76,7 +76,7 @@ static void compose(unsigned char sq, unsigned char look)
     if ((FILE_OF(sq) + RANK_OF(sq)) & 1)    /* a1 is dark */
         video_copy(GFX(GFX_TILE_LIGHT) + (line & 1) * CELL_BYTES, offset, WH(CELL_BYTES, CELL_H));
     else
-        video_copy(tile_dark, offset, WH(CELL_BYTES, CELL_H));
+        video_zero(offset, WH(CELL_BYTES, CELL_H));
     if (piece)
         layer(PIECE_IMAGE(COLOUR(piece) == BLACK, TYPE(piece)), PIECE_MASK(TYPE(piece)),
               offset + PIECE_TOP * FB_LINE, PIECE_ROWS);
@@ -118,6 +118,7 @@ static void update(unsigned char sq, unsigned char look)
             old += CELL_BYTES;
         } while (row < CELL_H && memcmp(fb, old, CELL_BYTES));
         video_flush_rect(COLROW(col, line + first), WH(CELL_BYTES, row - first));
+        key_watch();                        /* a key held while drawing (saver.c) */
     }
 }
 
@@ -190,6 +191,7 @@ void flush_sparse(void)
             }
             video_flush_rect(COLROW(first, line), WH(last - first + 1, 1));
         }
+        key_watch();
     }
 }
 

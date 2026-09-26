@@ -28,9 +28,11 @@ PUBLIC _video_blit
 PUBLIC _video_xor
 PUBLIC _video_copy
 PUBLIC _video_mask
+PUBLIC _video_zero
 PUBLIC _entropy
 PUBLIC _bdos
 PUBLIC _video_flush_rect
+PUBLIC _video_send_row
 PUBLIC _video_graphics
 PUBLIC _video_text
 PUBLIC _conout
@@ -236,6 +238,35 @@ mask_byte:
         djnz mask_row
         ret
 
+; void video_zero(unsigned int offset, unsigned int wh)
+; Clears (wh & 0xff) bytes on each of (wh >> 8) lines from offset on.
+_video_zero:
+        ld hl,2
+        add hl,sp
+        ld c,(hl)
+        inc hl
+        ld b,(hl)               ; BC = offset
+        inc hl
+        ld e,(hl)               ; E = width
+        inc hl
+        ld d,(hl)               ; D = rows
+        ld hl,_framebuffer
+        add hl,bc
+zero_row:
+        push hl
+        ld b,e
+        xor a
+zero_byte:
+        ld (hl),a
+        inc hl
+        djnz zero_byte
+        pop hl
+        ld bc,LINE
+        add hl,bc
+        dec d
+        jr nz,zero_row
+        ret
+
 ; unsigned int bdos(unsigned int function, unsigned int de)
 ; A CP/M BDOS call; returns what the BDOS leaves in HL (A = L).
 _bdos:
@@ -296,6 +327,36 @@ _video_flush_rect:
         add hl,bc
         pop bc
 rect_row:
+        call send_row
+        push bc
+        ld bc,LINE
+        add hl,bc
+        pop bc
+        inc b                   ; next line
+        dec d
+        jr nz,rect_row
+        ret
+
+; void video_send_row(const unsigned char *data, unsigned int col_row, unsigned int width)
+; Sends width (1..255) bytes from data as one line of the picture, from byte
+; column (col_row & 0xff) on line (col_row >> 8); the framebuffer is not used.
+_video_send_row:
+        ld hl,2
+        add hl,sp
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        push de                 ; data
+        inc hl
+        ld c,(hl)               ; C = byte column
+        inc hl
+        ld b,(hl)               ; B = line
+        inc hl
+        ld e,(hl)               ; E = width
+        pop hl
+
+; One ESC r write: E bytes from HL to column C of line B. Preserves BC, DE, HL.
+send_row:
         push bc
         push de
         push hl
@@ -327,19 +388,14 @@ rect_row:
         pop hl
         push hl
         ld b,e
-rect_byte:
+send_byte:
         ld a,(hl)
         call conout_a
         inc hl
-        djnz rect_byte
+        djnz send_byte
         pop hl
-        ld bc,LINE
-        add hl,bc
         pop de
         pop bc
-        inc b                   ; next line
-        dec d
-        jr nz,rect_row
         ret
 
 ; --- terminal -----------------------------------------------------------------

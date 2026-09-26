@@ -34,11 +34,11 @@ PUBLIC __arena_end
 defc _board          = (__BSS_END_tail + 255) & 0xFF00
 defc _castle_keep    = _board + 128
 defc _framebuffer    = _board + 256            ; 512x252 dots: 16128 bytes
-defc _moves          = _framebuffer + 16128    ; MOVE_STACK (900) moves of 4 bytes
-defc _hist           = _moves + 900 * 4        ; MAX_HIST (348) records of 13 bytes
+defc _moves          = _framebuffer + 16128    ; MOVE_STACK (700) moves of 4 bytes
+defc _hist           = _moves + 700 * 4        ; MAX_HIST (348) records of 13 bytes
 defc _psq_tab        = _hist + 348 * 13        ; int [12][64]
 defc _zobrist        = _psq_tab + 12 * 64 * 2  ; unsigned int [12][64]
 defc _zobrist_castle = _zobrist + 12 * 64 * 2  ; unsigned int [16]
 defc _zobrist_ep     = _zobrist_castle + 32    ; unsigned int [8]
 defc _gfx            = _zobrist_ep + 16        ; GFX_CAPACITY: the bitmaps from SCHAKEN.GFX
-defc __arena_end     = _gfx + 36 * 128
+defc __arena_end     = _gfx + 34 * 128

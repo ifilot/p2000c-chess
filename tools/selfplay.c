@@ -14,6 +14,7 @@
 
 unsigned char clock_available = 0;
 unsigned int clock_ticks(void) { return 0; }
+void key_watch(void) {}
 
 static const char *result(void)
 {

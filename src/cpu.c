@@ -21,6 +21,7 @@
 #include "chess.h"
 #include "cpu.h"
 #include "clock.h"
+#include "saver.h"
 
 unsigned char cpu_level = 2;
 unsigned int cpu_seed = 0x1234;
@@ -156,6 +157,7 @@ static void count_node(void)
 {
     cpu_nodes++;
     if ((cpu_nodes & 127) == 0) {
+        key_watch();                        /* keys that come in while thinking (saver.c) */
         if (clock_available) {
             if ((unsigned int)(clock_ticks() - start_ticks) >= budget_ticks)
                 stop = 1;

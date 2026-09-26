@@ -11,10 +11,11 @@
  * two squares and en passant the pawn's diagonal step. A promoting pawn
  * asks for the piece in the panel.
  *
- * Keys that arrive faster than the screen can follow (a held cursor key)
- * are all applied before the board is brought up to date, so the cursor
- * never lags behind. The status line is always written last after every
- * change, so it doubles as a display-complete marker for the tests.
+ * Keys typed faster than the screen can follow are all applied before the
+ * board is brought up to date, so the cursor never lags behind; a key that
+ * arrives twice while the screen is being drawn counts once (saver.c). The
+ * status line is always written last after every change, so it doubles as
+ * a display-complete marker for the tests.
  */
 #include <string.h>
 #include "video.h"
@@ -188,6 +189,12 @@ static unsigned char can_move(unsigned char sq)
     return 0;
 }
 
+static void redraw_promotion(void)
+{
+    redraw_game_screen();
+    show_status("Promoveer tot:");
+}
+
 /* Asks for the promotion piece: D T L P, RETURN for a queen, ESC to cancel. */
 static unsigned char ask_promotion(void)
 {
@@ -195,7 +202,7 @@ static unsigned char ask_promotion(void)
     show_note("D T L P  RET=D");
     show_status("Promoveer tot:");
     for (;;) {
-        key = conin();
+        key = wait_key_idle(redraw_promotion, tick_clock);
         if (key >= 'a' && key <= 'z')
             key -= 'a' - 'A';
         switch (key) {
@@ -334,12 +341,18 @@ static void new_game(void)
     flush_frame();
 }
 
+static void redraw_quit(void)
+{
+    redraw_game_screen();
+    show_status("Stoppen? (J/N)");
+}
+
 /* "Stoppen? (J/N)": returns 1 when the player confirms. */
 static unsigned char confirm_quit(void)
 {
     unsigned char key;
     show_status("Stoppen? (J/N)");
-    key = conin();
+    key = wait_key_idle(redraw_quit, tick_clock);
     if (key == 'j' || key == 'J' || key == 'y' || key == 'Y')
         return 1;
     announce();
@@ -373,6 +386,9 @@ static unsigned char handle_key(unsigned char key)
     case 'h':
         help_screen();
         break;
+    case 'f':
+        fen_screen();
+        break;
     case 'n':
         return 1;
     case 'q':
@@ -386,7 +402,7 @@ static unsigned char handle_key(unsigned char key)
 /* One game; returns 1 to go back to the start screen, 0 to leave the program. */
 unsigned char play(void)
 {
-    unsigned char result;
+    unsigned char result, key;
 
     demo = 0;
     new_game();
@@ -397,8 +413,8 @@ unsigned char play(void)
     announce();
     for (;;) {
         result = handle_key(wait_key_idle(redraw_game_screen, tick_clock));
-        while (result == 2 && conready())
-            result = handle_key(conin());
+        while (result == 2 && (key = next_key()) != 0)
+            result = handle_key(key);
         if (result != 2)
             return result;
         refresh_board();
@@ -413,7 +429,7 @@ static unsigned char pause_or_key(void)
     unsigned int i;
     for (i = 0; i < DEMO_PAUSE; i++) {
         if (conready()) {
-            conin();
+            key_taken(conin());
             return 1;
         }
         if ((i & 511) == 0)

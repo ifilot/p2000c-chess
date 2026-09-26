@@ -1,7 +1,7 @@
 # Schaken (chess) for the Philips P2000C
 
 [![Build](https://github.com/ifilot/p2000c-chess/actions/workflows/build.yml/badge.svg)](https://github.com/ifilot/p2000c-chess/actions/workflows/build.yml)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/ifilot/p2000c-chess/releases)
+[![Version](https://img.shields.io/badge/version-1.1.1-blue)](https://github.com/ifilot/p2000c-chess/releases)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 Chess against the computer for the Philips P2000C running CP/M. The board
@@ -24,6 +24,9 @@ at the start.
 <p align="center">
   <img src="docs/board.png" alt="The bishop on f1 picked up, its squares marked" width="48%">
   <img src="docs/black.png" alt="Playing Black: the board turned" width="48%">
+</p>
+<p align="center">
+  <img src="docs/fen.png" alt="The position as FEN text and QR code" width="48%">
 </p>
 
 ## Play
@@ -58,6 +61,7 @@ reaching the last rank asks for the piece: `D`ame, `T`oren, `L`oper or
 | `RETURN` or space | Pick up the piece under the cursor; play it to a marked square |
 | `RETURN` on the piece again, or `ESC` | Put it down |
 | `T`, `BS` or `DEL` | Take back your last move and the computer's reply |
+| `F` | The position as FEN text and QR code (see below) |
 | `H` | Help screen with the rules (plain text mode) |
 | `D` (start screen) | Demo: the computer plays itself (level 2 against level 3); any key stops it |
 | `N` | Back to the start screen for a new game |
@@ -71,6 +75,27 @@ last four moves of each side in long notation with the Dutch piece letters
 (`Pg1-f3`, `e4xd5`, `O-O`, `e7-e8D`, `+` check, `#` mate). After five
 minutes without a keypress a screen saver blanks the picture; any key
 brings it back.
+
+The terminal board finds keys through the video refresh, and while it is
+busy with picture data it can take a key that is still held down for a
+second press, most of all in graphics mode. Such a copy comes while the
+finger is still on the key, so the program ignores the same key when it
+arrives within a third of a second of the previous one. A key held down
+longer repeats about three times a second. Built with
+`make build EXTRA=-DKEY_TRACE`, the note row in the panel shows every key
+as it comes in: its code in hex, the 60 Hz ticks since the previous key,
+and a `-` when it was ignored.
+
+### Position as FEN and QR code
+
+`F` shows the current position in [Forsyth-Edwards Notation](https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation)
+(FEN), the standard one-line description of a chess position that every
+chess program and site can import, next to a QR code holding the same text.
+Scan it with a phone and paste it into an analysis board (on lichess.org,
+for instance) to look at the game further. The code is a version-5 QR code
+(37x37 modules) with modules of 6 dots by 4 lines, square on the CRT, dark
+on a lit background as on paper. Drawing it takes about two seconds; any
+key returns to the board (redrawn in about three and a half).
 
 ### Levels
 
@@ -110,6 +135,7 @@ emulator, character-ROM font):
 ```sh
 make perft              # move generator against the published perft counts (native)
 make selfplay           # engine games on the host
+make qrtest             # FEN of random games against the rules model, QR codes through a decoder
 make zperft             # perft on the Z80 with rules.asm, in the headless emulator
 make test               # games against the computer in the headless emulator
 make run                # open the game in the graphical emulator (WSLg/Linux)
@@ -121,7 +147,10 @@ python3 tools/bench.py  # emulated thinking time per level
 
 `make test` plays with the cursor keys like a player would, reads the
 computer's moves from the panel and checks every one, the move list and the
-result against a separate rules model (`tools/chessmodel.py`).
+result against a separate rules model (`tools/chessmodel.py`); it also opens
+the FEN page and checks the text and, read back from the emulated screen,
+the QR code. The QR checks need the `zxing-cpp` Python module
+(`pip install zxing-cpp`); without it they are skipped.
 
 ## Layout
 
@@ -131,10 +160,11 @@ result against a separate rules model (`tools/chessmodel.py`).
 | `src/game.c`, `src/game.h` | Game state, the cursor interface, turns, take-backs, the demo |
 | `src/screen.c`, `src/screen.h` | Board picture: composing squares in the framebuffer and uploading what changed |
 | `src/panel.c`, `src/panel.h` | Status panel and move list on the text plane |
-| `src/screens.c`, `src/screens.h` | Start and help screens (text mode), title picture |
+| `src/screens.c`, `src/screens.h` | Start and help screens (text mode), title picture, FEN page |
 | `src/chess.c`, `src/chess.h` | Rules: 0x88 board, incremental score and Zobrist key, repetitions, draws (C versions of the assembly for the native tools) |
 | `src/rules.asm` | Move generation, the attack test, making and taking back moves |
 | `src/cpu.c`, `src/cpu.h` | Computer player: search, evaluation, opening book |
+| `src/qr.c`, `src/qr.h` | QR code encoder (version 5-L, byte mode) for the FEN page |
 | `src/gfx.c`, `src/gfx.h` | Loads `SCHAKEN.GFX` via the BDOS |
 | `src/memory.asm` | The big buffers (board, framebuffer, search stacks, bitmaps), placed past the program |
 | `src/clock.c`, `src/saver.c` | Game clock from the BIOS 60 Hz timer; screen saver |

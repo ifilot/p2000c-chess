@@ -23,7 +23,9 @@ extern void video_blit(const unsigned char *sprite, unsigned int offset, unsigne
 extern void video_xor(const unsigned char *sprite, unsigned int offset, unsigned int wh);
 extern void video_copy(const unsigned char *sprite, unsigned int offset, unsigned int wh);
 extern void video_mask(const unsigned char *sprite, unsigned int offset, unsigned int wh);   /* AND NOT */
+extern void video_zero(unsigned int offset, unsigned int wh);
 extern void video_flush_rect(unsigned int col_row, unsigned int wh);
+extern void video_send_row(const unsigned char *data, unsigned int col_row, unsigned int width);
 extern void video_graphics(void);
 extern void video_text(void);
 

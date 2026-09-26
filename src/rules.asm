@@ -932,6 +932,8 @@ mm_place:
         ld hl,mm_me
         or (hl)
         ld (mm_piece),a
+        xor a                   ; a pawn move: the fifty-move count restarts
+        ld (_halfmove),a
 mm_arrive:
         ld hl,_board
         ld a,(mm_to)
