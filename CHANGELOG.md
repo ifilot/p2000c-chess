@@ -3,20 +3,6 @@
 All notable changes to Schaken for the Philips P2000C are recorded here. The
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.1] - 2026-09-26
-
-### Fixed
-
-- Keys were still registered twice: the space bar picked a piece up and put
-  it down again, a cursor key moved two squares. The terminal board, busy
-  with picture data, takes a key that is still held down for a new press,
-  also during short redraws, which the filter of 1.1.0 let through. Now the
-  same key arriving within a third of a second of the previous one is
-  ignored, whatever the program was doing; arrival times are noted while it
-  draws or thinks. A key held longer repeats about three times a second.
-- Built with `-DKEY_TRACE`, the panel shows every key with its timing, to
-  check the filter on the real machine.
-
 ## [1.1.0] - 2026-09-26
 
 ### Added
@@ -28,15 +14,19 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   loaded.
 - `make qrtest`: the FEN of random games against the rules model and the QR
   codes through a decoder (zxing-cpp); `make test` also checks the FEN page
-  in the emulator, reading the QR code back from the screen.
+  in the emulator, reading the QR code back from the screen, and the filter
+  for doubled keys.
+- Built with `-DKEY_TRACE`, the panel shows every key with its timing, to
+  check the filter on the real machine.
 
 ### Fixed
 
-- A key pressed while the screen was being drawn could arrive twice (a move
-  played and the moved piece picked up again, two moves taken back). After
-  a key that kept the program busy for a third of a second or more, the
-  same key again within a quarter of a second of the program being ready
-  is ignored.
+- Keys were registered twice: the space bar picked a piece up and put it
+  down again, a cursor key moved two squares. The terminal board, busy with
+  picture data, takes a key that is still held down for a new press. The
+  same key arriving within a third of a second of the previous one is now
+  ignored; arrival times are noted while the program draws or thinks. A key
+  held longer repeats about three times a second.
 - The promotion prompt and the quit question read their key through the same
   filter, and the screen saver can also start while they wait.
 - A pawn promotion without a capture did not restart the fifty-move count,
@@ -67,6 +57,5 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Perft checks natively and on the emulated Z80, self-play, emulator game
   tests, and a SASI deployment image.
 
-[1.1.1]: https://github.com/ifilot/p2000c-chess/releases/tag/v1.1.1
 [1.1.0]: https://github.com/ifilot/p2000c-chess/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ifilot/p2000c-chess/releases/tag/v1.0.0

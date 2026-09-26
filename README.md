@@ -1,7 +1,7 @@
 # Schaken (chess) for the Philips P2000C
 
 [![Build](https://github.com/ifilot/p2000c-chess/actions/workflows/build.yml/badge.svg)](https://github.com/ifilot/p2000c-chess/actions/workflows/build.yml)
-[![Version](https://img.shields.io/badge/version-1.1.1-blue)](https://github.com/ifilot/p2000c-chess/releases)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/ifilot/p2000c-chess/releases)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 Chess against the computer for the Philips P2000C running CP/M. The board

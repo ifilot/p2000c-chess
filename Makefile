@@ -5,7 +5,7 @@
 # and dist/pro/ disk images) and, for the character-ROM font, p2000c-emulator.
 # `make perft` and `make selfplay` build the rules and the engine natively (gcc).
 
-VERSION    = 1.1.1
+VERSION    = 1.1.0
 BUILD_DATE = $(shell date +%Y-%m-%d)
 
 # sdcc's register-allocation effort. The hot paths are assembly (rules.asm,
