@@ -14,9 +14,11 @@ ALLOCS ?= 10000
 
 # -SO2, not -SO3: in p2000c-battleship the level-3 peephole rules dropped
 # stores and loads that were needed (seen in the listings).
+# The game uses direct BDOS calls, so omit the CP/M CRT static stdio heap.
+# Current Z88DK images otherwise reserve 1 KiB that pushes the arena past D800h.
 ZCC      = docker run --rm --user $(shell id -u):$(shell id -g) -v "$(CURDIR)":/src -w /src z88dk/z88dk zcc
 ZCCFLAGS = +cpm -vn -clib=sdcc_iy -O3 -SO2 --opt-code-speed --max-allocs-per-node$(ALLOCS) \
-           -Ibuild -create-app -m $(EXTRA)
+           -Ibuild -create-app -m -pragma-define:CLIB_STDIO_HEAP_SIZE=0 $(EXTRA)
 
 SOURCES = src/main.c src/game.c src/screen.c src/panel.c src/screens.c src/saver.c src/clock.c \
           src/gfx.c src/chess.c src/cpu.c src/rules.asm src/video.asm src/memory.asm
