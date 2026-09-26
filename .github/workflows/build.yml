@@ -79,10 +79,16 @@ jobs:
           name: p2000c-chess
           path: dist
 
+      # A tag pushed again (moved to another commit) replaces the files of
+      # its existing release instead of failing to create it a second time.
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/p2000c-chess.zip dist/build/SCHAKEN.COM dist/build/SCHAKEN.GFX dist/build/HD1_256.hda \
-            --title "Schaken $GITHUB_REF_NAME" --generate-notes
+          files="dist/p2000c-chess.zip dist/build/SCHAKEN.COM dist/build/SCHAKEN.GFX dist/build/HD1_256.hda"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" $files --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" $files --title "Schaken $GITHUB_REF_NAME" --generate-notes
+          fi
