@@ -36,7 +36,9 @@ ARENA_LIMIT = 0xDE00
 # Deployment image for the SASI emulator (ZuluBlaster): a second-disk image
 # with the standard split layout (E: low, F: high) built with the sibling
 # disk tool's CLI and its split system tracks, holding only the game on F:.
-DISKTOOL      = ../p2000c-cpm-disk-tool
+# The former p2000c-cpm-disk-tool checkout is now part of the SASI-drive
+# distribution. Prefer the legacy checkout when present, otherwise use it.
+DISKTOOL      ?= $(firstword $(wildcard ../p2000c-cpm-disk-tool ../p2000c-zulublaster-sasi-drive))
 P2000C_DISK   = PYTHONPATH=$(DISKTOOL)/src python3 -m p2000c_disk.cli
 SYSTEM_TRACKS = $(DISKTOOL)/assets/boot/hdboot-split.trk
 DEPLOY_IMAGE  = build/HD1_256.hda

@@ -101,9 +101,6 @@ turn the board; it is in Dutch and English. The code is a version-6 QR code
 on a lit background as on paper. Drawing it takes about two seconds; any
 key returns to the board (redrawn in about three and a half).
 
-The page lives in `site/`; `tools/gen_site.py` adds the game's bitmaps from
-`src/sprites.bin` and the Pages workflow publishes it on every change.
-
 ### Levels
 
 All levels open from a small book of main lines, and choose at random among
@@ -133,8 +130,8 @@ make build            # -> build/SCHAKEN.COM and build/SCHAKEN.GFX
 ```
 
 The rules and the engine are also plain C that compiles natively, which the
-first two checks use (gcc); the other targets use the sibling checkouts
-[p2000c-cpm-disk-tool](https://github.com/ifilot/p2000c-cpm-disk-tool)
+first two checks use (gcc); the other targets use the sibling
+[P2000C ZuluBlaster SASI drive distribution](https://github.com/ifilot/p2000c-zulublaster-sasi-drive)
 (headless emulator, CP/M disk images) and
 [p2000c-emulator](https://github.com/ifilot/p2000c-emulator) (graphical
 emulator, character-ROM font):

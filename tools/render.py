@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -24,7 +25,34 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-TOOL = ROOT.parent / "p2000c-cpm-disk-tool"
+
+
+def find_disk_tool() -> Path:
+    """Find the disk-image/emulator checkout used by the development tools.
+
+    ``p2000c-cpm-disk-tool`` was folded into
+    ``p2000c-zulublaster-sasi-drive``. Keep accepting the former checkout
+    for existing installations, while using the latter when it is available.
+    """
+    override = os.environ.get("P2000C_DISK_TOOL")
+    candidates = ([Path(override)] if override else []) + [
+        ROOT.parent / "p2000c-cpm-disk-tool",
+        ROOT.parent / "p2000c-zulublaster-sasi-drive",
+    ]
+    for candidate in candidates:
+        if (candidate / "src/p2000c_disk/cli.py").is_file() and \
+           (candidate / "dist/pro/HD0_256.hda").is_file() and \
+           (candidate / "dist/pro/HD1_256.hda").is_file():
+            return candidate
+    locations = ", ".join(str(candidate) for candidate in candidates)
+    raise FileNotFoundError(
+        "P2000C disk tools/images not found. Install a sibling "
+        "p2000c-zulublaster-sasi-drive (or legacy p2000c-cpm-disk-tool) "
+        f"checkout, or set P2000C_DISK_TOOL. Looked in: {locations}"
+    )
+
+
+TOOL = find_disk_tool()
 EMULATOR = TOOL / "build/emulator/p2000c-mini"
 IPL = TOOL / "tools/emulator/firmware/IPLDUMP.BIN"
 HD0 = TOOL / "dist/pro/HD0_256.hda"
