@@ -1,7 +1,7 @@
 # Schaken (chess) for the Philips P2000C
 
 [![Build](https://github.com/ifilot/p2000c-chess/actions/workflows/build.yml/badge.svg)](https://github.com/ifilot/p2000c-chess/actions/workflows/build.yml)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/ifilot/p2000c-chess/releases)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/ifilot/p2000c-chess/releases)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 Chess against the computer for the Philips P2000C running CP/M. The board
@@ -26,7 +26,7 @@ at the start.
   <img src="docs/black.png" alt="Playing Black: the board turned" width="48%">
 </p>
 <p align="center">
-  <img src="docs/fen.png" alt="The position as FEN text and QR code" width="48%">
+  <img src="docs/fen.png" alt="The position as FEN text and a QR code linking to the web page" width="48%">
 </p>
 
 ## Play
@@ -90,12 +90,19 @@ and a `-` when it was ignored.
 
 `F` shows the current position in [Forsyth-Edwards Notation](https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation)
 (FEN), the standard one-line description of a chess position that every
-chess program and site can import, next to a QR code holding the same text.
-Scan it with a phone and paste it into an analysis board (on lichess.org,
-for instance) to look at the game further. The code is a version-5 QR code
-(37x37 modules) with modules of 6 dots by 4 lines, square on the CRT, dark
+chess program and site can import, next to a QR code. The QR code is a link
+to the [Schaken web page](https://ifilot.github.io/p2000c-chess/) with the
+position in the address (`https://ifilot.github.io/p2000c-chess/#` and the
+FEN with `_` for its spaces). Scan it with a phone and the page draws the
+board as the game does, dot for dot with the same bitmaps, green on black.
+It shows the FEN to copy, links to an analysis board on lichess.org and can
+turn the board; it is in Dutch and English. The code is a version-6 QR code
+(41x41 modules) with modules of 6 dots by 4 lines, square on the CRT, dark
 on a lit background as on paper. Drawing it takes about two seconds; any
 key returns to the board (redrawn in about three and a half).
+
+The page lives in `site/`; `tools/gen_site.py` adds the game's bitmaps from
+`src/sprites.bin` and the Pages workflow publishes it on every change.
 
 ### Levels
 
@@ -136,6 +143,7 @@ emulator, character-ROM font):
 make perft              # move generator against the published perft counts (native)
 make selfplay           # engine games on the host
 make qrtest             # FEN of random games against the rules model, QR codes through a decoder
+make site               # the web page the QR code opens -> build/site/ (serve it: python3 -m http.server -d build/site)
 make zperft             # perft on the Z80 with rules.asm, in the headless emulator
 make test               # games against the computer in the headless emulator
 make run                # open the game in the graphical emulator (WSLg/Linux)
@@ -164,13 +172,14 @@ the QR code. The QR checks need the `zxing-cpp` Python module
 | `src/chess.c`, `src/chess.h` | Rules: 0x88 board, incremental score and Zobrist key, repetitions, draws (C versions of the assembly for the native tools) |
 | `src/rules.asm` | Move generation, the attack test, making and taking back moves |
 | `src/cpu.c`, `src/cpu.h` | Computer player: search, evaluation, opening book |
-| `src/qr.c`, `src/qr.h` | QR code encoder (version 5-L, byte mode) for the FEN page |
+| `src/qr.c`, `src/qr.h` | QR code encoder (version 6-L, byte mode) for the FEN page, and the web page's address |
 | `src/gfx.c`, `src/gfx.h` | Loads `SCHAKEN.GFX` via the BDOS |
 | `src/memory.asm` | The big buffers (board, framebuffer, search stacks, bitmaps), placed past the program |
 | `src/clock.c`, `src/saver.c` | Game clock from the BIOS 60 Hz timer; screen saver |
 | `src/video.asm`, `src/video.h` | Framebuffer primitives, `ESC r` row uploads, BIOS and BDOS calls |
 | `src/sprites.bin`, `src/sprites.h` | Generated bitmaps (first part of `SCHAKEN.GFX`) and their offsets |
 | `src/splash.rle`, `src/splash.h` | Generated run-length title picture (second part of `SCHAKEN.GFX`) |
+| `site/` | The web page the QR code opens: FEN reader, the board composed as in `screen.c`, the page |
 | `tools/` | Generators, emulator launchers, screenshot, tests, perft, self-play, benchmark |
 | `tools/pieces/` | The piece drawings (SVG) |
 

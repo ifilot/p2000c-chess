@@ -1,0 +1,169 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* style.css -- green phosphor on black, as on the P2000C's monitor. */
+
+:root {
+  --phosphor: #33ff33;                      /* (51, 255, 51), as tools/render.py draws the screen */
+  --phosphor-dim: #1fa51f;
+  --phosphor-faint: #0f3d0f;
+  --glow: rgba(51, 255, 51, 0.45);
+  --bg: #000;
+  --bezel: #0b0d0b;
+  --error: #ffb347;
+  --font: "VT323", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html { background: var(--bg); }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 50% 0%, #061206 0%, var(--bg) 70%);
+  color: var(--phosphor);
+  font-family: var(--font);
+  font-size: 22px;
+  line-height: 1.25;
+  text-shadow: 0 0 4px var(--glow);
+}
+
+a { color: var(--phosphor); }
+a:hover { color: #fff; }
+:focus-visible { outline: 2px solid var(--phosphor); outline-offset: 3px; }
+
+.top, main, footer {
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.brand {
+  text-decoration: none;
+  letter-spacing: 0.2em;
+  font-size: 26px;
+}
+.brand span { color: var(--phosphor-dim); letter-spacing: 0.05em; }
+
+.lang { display: flex; gap: 4px; }
+
+button, .button {
+  font: inherit;
+  color: var(--phosphor);
+  background: transparent;
+  border: 2px solid var(--phosphor-dim);
+  padding: 4px 14px;
+  cursor: pointer;
+  text-decoration: none;
+  text-shadow: inherit;
+  display: inline-block;
+}
+button:hover, .button:hover { border-color: var(--phosphor); color: #fff; }
+.lang button[aria-pressed="true"], .button.primary {
+  background: var(--phosphor);
+  color: var(--bg);
+  border-color: var(--phosphor);
+  text-shadow: none;
+}
+.button.primary:hover { background: #7dff7d; color: var(--bg); }
+
+/* The screen: the board picture and a panel as in the game. */
+.screen {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  background: var(--bg);
+  border: 14px solid var(--bezel);
+  border-radius: 28px;
+  box-shadow: 0 0 0 1px #1b221b, inset 0 0 60px rgba(51, 255, 51, 0.06);
+  padding: 24px 28px;
+}
+
+#board {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1200 / 1260;
+  filter: drop-shadow(0 0 3px var(--glow));
+}
+
+.panel p { margin: 0; }
+.panel .title { letter-spacing: 0.1em; }
+.panel .gap { margin-top: 1.25em; }
+.panel dl { margin: 1.25em 0 0; }
+.panel dl div { display: flex; gap: 0.6em; }
+.panel dt { min-width: 5.5em; color: var(--phosphor-dim); }
+.panel dd { margin: 0; }
+#fifty-label { cursor: help; text-decoration: underline dotted; text-underline-offset: 4px; }
+
+.notice {
+  border-left: 3px solid var(--phosphor-dim);
+  margin: 20px 0 0;
+  padding: 2px 0 2px 12px;
+  color: var(--phosphor-dim);
+}
+
+.controls { margin-top: 24px; }
+.controls label { display: block; color: var(--phosphor-dim); margin-bottom: 6px; }
+
+.fen-row { display: flex; gap: 8px; }
+#fen {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 20px;
+  color: var(--phosphor);
+  text-shadow: inherit;
+  background: #020802;
+  border: 2px solid var(--phosphor-faint);
+  padding: 6px 10px;
+}
+#fen:focus { border-color: var(--phosphor-dim); outline: none; }
+
+.error { color: var(--error); text-shadow: none; margin: 8px 0 0; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+
+.about {
+  margin-top: 32px;
+  color: var(--phosphor-dim);
+  max-width: 44em;
+}
+.about p { margin: 0; }
+kbd {
+  font: inherit;
+  border: 1px solid var(--phosphor-dim);
+  padding: 0 5px;
+}
+
+footer { padding-top: 24px; padding-bottom: 32px; font-size: 20px; }
+
+@media (max-width: 760px) {
+  body { font-size: 20px; }
+  .screen {
+    grid-template-columns: 1fr;
+    border-width: 8px;
+    border-radius: 18px;
+    padding: 14px;
+    gap: 14px;
+  }
+  .panel .title, .panel .title + p { display: none; }   /* the header says it already */
+  .panel dl { margin-top: 0.75em; }
+  .panel .gap { margin-top: 0; }
+  .brand { font-size: 22px; }
+  .brand span { display: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  button, .button { transition: background-color 0.12s, border-color 0.12s, color 0.12s; }
+}

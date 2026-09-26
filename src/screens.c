@@ -5,9 +5,9 @@
  * title picture is a 512x252 bitmap whose run-length data gfx.c reads from
  * SCHAKEN.GFX into the start of the framebuffer. It is unpacked in place
  * once, backwards, and uploaded sparsely. The FEN page shows the position
- * as text and as a QR code, which goes to the terminal line by line
- * without passing through the framebuffer, so the board picture there
- * stays intact for the way back.
+ * as text and as a QR code of the web page that draws it; the code goes to
+ * the terminal line by line without passing through the framebuffer, so
+ * the board picture there stays intact for the way back.
  */
 #include <string.h>
 #include "video.h"
@@ -102,18 +102,23 @@ void help_screen(void)
 #define QR_MODULES (QR_SIZE + 2 * QR_QUIET)
 #define QR_BYTES   ((QR_MODULES * QR_DOTS + 7) / 8)
 #define QR_TOP     ((FB_LINES - QR_MODULES * QR_LINES) / 2)
-#define QR_COLUMN  1                        /* byte column of the left edge */
-#define FEN_COL    36                       /* the text, right of the code */
-#define FEN_WIDTH  28
+#define QR_COLUMN  0                        /* byte column of the left edge */
+#define FEN_COL    38                       /* the text, right of the code */
+#define FEN_WIDTH  26
+#define URL_LEN    (sizeof FEN_PAGE_URL - 1)
 
-/* The QR matrix, a line of dots and the FEN go in the move stack above the
- * player's legal moves (never more than 218); the search is idle meanwhile. */
-#define QR_BUFFER  ((unsigned char *)(moves + 256))
+/* The QR matrix, a line of dots and the text of the code (the address, then
+ * the FEN) go in the move stack; the search is idle meanwhile, and game.c
+ * generates the player's legal moves there again afterwards. */
+#define QR_BUFFER  ((unsigned char *)moves)
 #define QR_ROW     (QR_BUFFER + QR_WORK)
-#define FEN_TEXT   ((char *)QR_ROW + QR_BYTES)
-typedef char qr_buffer_fits[256 * 4 + QR_WORK + QR_BYTES + FEN_MAX + 1 <= MOVE_STACK * 4 ? 1 : -1];
+#define URL_TEXT   ((char *)QR_ROW + QR_BYTES)
+#define FEN_TEXT   (URL_TEXT + URL_LEN)
+typedef char qr_buffer_fits[QR_WORK + QR_BYTES + URL_LEN + FEN_MAX + 1 <= MOVE_STACK * 4 ? 1 : -1];
+typedef char qr_text_fits[URL_LEN + FEN_MAX <= QR_MAX_TEXT ? 1 : -1];
 
-/* The FEN over several lines, broken after a '/' or a space where it can. */
+/* The FEN (with '_' for its spaces) over several lines, broken after a '/'
+ * or a space where it can. */
 static void put_fen(void)
 {
     const char *p = FEN_TEXT;
@@ -123,14 +128,14 @@ static void put_fen(void)
         cut = n;
         if (n > FEN_WIDTH) {
             cut = FEN_WIDTH;
-            while (cut && p[cut - 1] != '/' && p[cut - 1] != ' ')
+            while (cut && p[cut - 1] != '/' && p[cut - 1] != '_')
                 cut--;
             if (!cut)
                 cut = FEN_WIDTH;
         }
         con_at(ROWCOL(row++, FEN_COL));
-        while (cut--)
-            conout(*p++);
+        for (; cut; cut--, p++)
+            conout(*p == '_' ? ' ' : *p);
     }
 }
 
@@ -167,11 +172,11 @@ static void draw_fen_page(void)
     video_graphics();
     con_at(ROWCOL(3, FEN_COL));  con_puts("STELLING IN FEN-NOTATIE");
     put_fen();
-    con_at(ROWCOL(11, FEN_COL)); con_puts("Deze tekst staat ook in de");
-    con_at(ROWCOL(12, FEN_COL)); con_puts("QR-code: scan hem met een");
-    con_at(ROWCOL(13, FEN_COL)); con_puts("telefoon en plak hem in een");
-    con_at(ROWCOL(14, FEN_COL)); con_puts("schaakprogramma om de");
-    con_at(ROWCOL(15, FEN_COL)); con_puts("stelling te analyseren.");
+    con_at(ROWCOL(11, FEN_COL)); con_puts("Scan de QR-code met een");
+    con_at(ROWCOL(12, FEN_COL)); con_puts("telefoon: hij opent een");
+    con_at(ROWCOL(13, FEN_COL)); con_puts("webpagina met dit bord,");
+    con_at(ROWCOL(14, FEN_COL)); con_puts("de FEN-tekst en een link");
+    con_at(ROWCOL(15, FEN_COL)); con_puts("naar een analysebord.");
     con_at(ROWCOL(18, FEN_COL)); con_puts("Even geduld...");
     send_qr();
     con_at(ROWCOL(18, FEN_COL)); con_puts("Druk op een toets.");
@@ -180,7 +185,12 @@ static void draw_fen_page(void)
 /* The position as FEN and QR code; any key returns to the board. */
 void fen_screen(void)
 {
-    qr_encode(FEN_TEXT, chess_fen(FEN_TEXT), QR_BUFFER);
+    unsigned char len = chess_fen(FEN_TEXT), i;
+    memcpy(URL_TEXT, FEN_PAGE_URL, URL_LEN);
+    for (i = 0; i < len; i++)
+        if (FEN_TEXT[i] == ' ')
+            FEN_TEXT[i] = '_';
+    qr_encode(URL_TEXT, URL_LEN + len, QR_BUFFER);
     draw_fen_page();
     wait_key(draw_fen_page);
     redraw_game_screen();

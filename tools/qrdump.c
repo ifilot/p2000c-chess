@@ -4,7 +4,9 @@
  *
  *   qrdump text STRING       the QR matrix of STRING
  *   qrdump games N SEED      N random games: per ply the moves so far and the
- *                            FEN, every seventh position also its QR matrix
+ *                            FEN, every seventh position also the QR matrix
+ *                            the FEN page shows (FEN_PAGE_URL, then the FEN
+ *                            with '_' for its spaces)
  *
  * Output lines: "M e2e4 e7e5 ..." (moves as from-to plus promotion letter),
  * "F <fen>", "Q" followed by QR_SIZE lines of 0 and 1 (1 = dark).
@@ -27,6 +29,18 @@ static void dump_qr(const char *text)
             putchar('0' + (work[r * QR_SIZE + c] & 1));
         putchar('\n');
     }
+}
+
+/* The text of the FEN page's QR code. */
+static void dump_page_qr(const char *fen)
+{
+    char text[QR_MAX_TEXT + 1], *p;
+    strcpy(text, FEN_PAGE_URL);
+    strcat(text, fen);
+    for (p = text; *p; p++)
+        if (*p == ' ')
+            *p = '_';
+    dump_qr(text);
 }
 
 static unsigned long seed;
@@ -54,7 +68,7 @@ static void random_game(int number)
         }
         printf("M%s\nF %s\n", record, fen);
         if ((hist_len + number) % 7 == 0)
-            dump_qr(fen);
+            dump_page_qr(fen);
         n = gen_legal(0);
         if (n == 0 || halfmove >= 100 || hist_len >= MAX_HIST - 48)
             break;

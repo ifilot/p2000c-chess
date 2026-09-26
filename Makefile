@@ -5,7 +5,7 @@
 # and dist/pro/ disk images) and, for the character-ROM font, p2000c-emulator.
 # `make perft` and `make selfplay` build the rules and the engine natively (gcc).
 
-VERSION    = 1.1.0
+VERSION    = 1.2.0
 BUILD_DATE = $(shell date +%Y-%m-%d)
 
 # sdcc's register-allocation effort. The hot paths are assembly (rules.asm,
@@ -44,7 +44,7 @@ DEPLOY_IMAGE  = build/HD1_256.hda
 HOSTCC = gcc
 HOSTCFLAGS = -O2 -Wall
 
-.PHONY: all build run screenshot test sprites deploy perft zperft selfplay qrtest clean
+.PHONY: all build run screenshot test sprites deploy perft zperft selfplay qrtest site clean
 
 all: build
 
@@ -106,6 +106,11 @@ qrtest:
 	mkdir -p build
 	$(HOSTCC) $(HOSTCFLAGS) -o build/qrdump tools/qrdump.c src/chess.c src/qr.c
 	python3 tools/test_qr.py
+
+# The web page the QR code opens -> build/site/ (published by the Pages
+# workflow); to look at it: python3 -m http.server -d build/site
+site:
+	python3 tools/gen_site.py
 
 # Open the game in the graphical emulator.
 run: build

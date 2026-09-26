@@ -3,8 +3,8 @@
 
 Random games are played by tools/qrdump.c; every FEN it writes must equal
 the one tools/chessmodel.py computes for the same moves, and the QR codes
-(of some of those FENs and of texts of every length up to the capacity)
-must decode to their text. The decoding needs the zxing-cpp Python module
+(the web page address with some of those FENs, as the FEN page shows them,
+and texts of every length up to the capacity) must decode to their text. The decoding needs the zxing-cpp Python module
 (`pip install zxing-cpp`); without it only the FENs are checked. The codes
 are drawn the way the game shows them: modules of 6 x 4 dots at the CRT's
 3:5 dot pitch, light on a lit quiet zone. Run with `make qrtest`.
@@ -20,6 +20,9 @@ ROOT = Path(__file__).resolve().parent.parent
 QRDUMP = ROOT / "build/qrdump"
 MODULE = (6 * 3, 4 * 5)                     # pixels per module: dots times the dot pitch
 QUIET = 4
+SIZE = 41                                   # modules per side (QR_SIZE)
+CAPACITY = 134                              # QR_MAX_TEXT
+PAGE_URL = "https://ifilot.github.io/p2000c-chess/#"   # FEN_PAGE_URL
 
 try:
     import zxingcpp
@@ -37,8 +40,8 @@ def parse(output):
         i += 2
         matrix = None
         if i < len(lines) and lines[i] == "Q":
-            matrix = lines[i + 1:i + 38]
-            i += 38
+            matrix = lines[i + 1:i + 1 + SIZE]
+            i += 1 + SIZE
         entries.append((moves, fen, matrix))
     return entries
 
@@ -75,19 +78,21 @@ def main():
             errors += 1
         if matrix and zxingcpp:
             codes += 1
-            if decode(matrix) != fen:
-                print(f"QR of {fen!r} decodes to {decode(matrix)!r}")
+            url = PAGE_URL + fen.replace(" ", "_")
+            if decode(matrix) != url:
+                print(f"QR of {url!r} decodes to {decode(matrix)!r}")
                 errors += 1
-    print(f"{len(entries)} positions, longest FEN {longest}, {codes} QR codes decoded")
+    print(f"{len(entries)} positions, longest FEN {longest} (with the address {len(PAGE_URL) + longest}), "
+          f"{codes} QR codes decoded")
     if zxingcpp:
         texts = ["x", "8/8/8/8/8/8/8/8 w - - 0 1"]
-        texts += ["".join(chr(33 + (i * 7 + n) % 94) for i in range(n)) for n in range(1, 107, 5)]
-        texts.append("K" * 106)
+        texts += ["".join(chr(33 + (i * 7 + n) % 94) for i in range(n)) for n in range(1, CAPACITY + 1, 5)]
+        texts.append("K" * CAPACITY)
         for text in texts:
             if decode(matrix_of(text)) != text:
                 print(f"QR of {text!r} decodes to {decode(matrix_of(text))!r}")
                 errors += 1
-        print(f"{len(texts)} texts of 1 to 106 characters decoded")
+        print(f"{len(texts)} texts of 1 to {CAPACITY} characters decoded")
     else:
         print("zxing-cpp not installed: QR codes not decoded")
     print("PASS" if not errors else f"FAIL ({errors})")

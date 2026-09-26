@@ -3,6 +3,25 @@
 All notable changes to Schaken for the Philips P2000C are recorded here. The
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-09-26
+
+### Changed
+
+- The QR code on the FEN page (`F`) is now a link to the Schaken web page,
+  https://ifilot.github.io/p2000c-chess/, with the position in the address.
+  The page draws the board with the game's own bitmaps, green on black,
+  shows the FEN to copy, links to an analysis board on lichess.org and can
+  turn the board; it is in Dutch and English. The FEN still appears as text
+  next to the code.
+- The QR code is version 6 (41x41 modules) instead of 5, to hold the address
+  and any FEN.
+
+### Added
+
+- `site/`, `tools/gen_site.py` and `make site`: the web page, assembled with
+  the bitmaps from `src/sprites.bin`; a workflow publishes it on GitHub
+  Pages.
+
 ## [1.1.0] - 2026-09-26
 
 ### Added
@@ -57,5 +76,6 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Perft checks natively and on the emulated Z80, self-play, emulator game
   tests, and a SASI deployment image.
 
+[1.2.0]: https://github.com/ifilot/p2000c-chess/releases/tag/v1.2.0
 [1.1.0]: https://github.com/ifilot/p2000c-chess/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ifilot/p2000c-chess/releases/tag/v1.0.0

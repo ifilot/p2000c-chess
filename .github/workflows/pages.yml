@@ -1,0 +1,50 @@
+name: Pages
+
+# The web page the FEN page's QR code opens (site/, assembled by
+# tools/gen_site.py with the game's bitmaps), at https://ifilot.github.io/p2000c-chess/.
+# Needs Settings -> Pages -> Source: GitHub Actions.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'site/**'
+      - 'src/sprites.bin'
+      - 'src/sprites.h'
+      - 'tools/gen_site.py'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble the page
+        run: |
+          python3 tools/gen_site.py
+          for f in build/site/*.js; do node --check "$f"; done
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

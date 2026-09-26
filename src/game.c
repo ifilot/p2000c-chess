@@ -388,6 +388,7 @@ static unsigned char handle_key(unsigned char key)
         break;
     case 'f':
         fen_screen();
+        legal_end = gen_legal(0);           /* the page used the move stack */
         break;
     case 'n':
         return 1;

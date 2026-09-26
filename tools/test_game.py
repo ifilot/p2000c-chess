@@ -11,9 +11,10 @@ move list and the final verdict must agree with the model. As in the
 Othello tests, the game is replayed from the start for every new computer
 move (the emulator runs are deterministic). A last test opens the FEN
 page (F): the text must be the model's FEN, and the QR code, taken from the
-emulated screen at the CRT's dot pitch, must decode to it (with the
-zxing-cpp Python module; without it the code is not read). Run after
-`make build`.
+emulated screen at the CRT's dot pitch, must decode to the web page's
+address with that FEN (with the zxing-cpp Python module; without it the
+code is not read); the game then goes on, with the legal moves the page
+overwrote generated again. Run after `make build`.
 """
 import json
 import random
@@ -180,7 +181,8 @@ def test_doubled_keys():
     return None
 
 
-FEN_COL, FEN_WIDTH, FEN_ROW = 36, 28, 5
+FEN_COL, FEN_WIDTH, FEN_ROW = 38, 26, 5
+PAGE_URL = "https://ifilot.github.io/p2000c-chess/#"   # FEN_PAGE_URL in src/qr.h
 
 
 def fen_lines(fen):
@@ -229,8 +231,9 @@ def test_fen():
     except ImportError:
         print("   (zxing-cpp not installed: QR code not read)")
     else:
-        if text != g.pos.fen():
-            return f"QR code reads {text!r}, expected {g.pos.fen()!r}"
+        url = PAGE_URL + g.pos.fen().replace(" ", "_")
+        if text != url:
+            return f"QR code reads {text!r}, expected {url!r}"
     # back to the board, and the game goes on
     g.actions += ["--run", "1600000", "--send", " ", "--wait-for", "Wit aan zet"]
     g.human_move(g.choose())

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schaken – stelling</title>
+<meta name="description" content="Een stelling uit Schaken voor de Philips P2000C, getekend zoals op de groene monitor. / A position from Schaken for the Philips P2000C, drawn as on its green monitor.">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23000'/%3E%3Cpath fill='%2333ff33' d='M6 3h4v2H9v2l2 3v1H5v-1l2-3V5H6zM4 12h8v2H4z'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="https://github.com/ifilot/p2000c-chess">SCHAKEN <span>· Philips P2000C</span></a>
+  <div class="lang" role="group" aria-label="Taal / Language">
+    <button type="button" data-lang="nl">NL</button>
+    <button type="button" data-lang="en">EN</button>
+  </div>
+</header>
+
+<main>
+  <section class="screen">
+    <canvas id="board" role="img" width="1200" height="1260"></canvas>
+    <div class="panel">
+      <p class="title">S C H A K E N</p>
+      <p>Philips P2000C</p>
+      <p class="gap" id="to-move"></p>
+      <dl>
+        <div><dt data-t="move"></dt><dd id="move-number"></dd></div>
+        <div><dt data-t="castling"></dt><dd id="castling"></dd></div>
+        <div><dt data-t="ep"></dt><dd id="ep"></dd></div>
+        <div><dt data-t="fifty" id="fifty-label"></dt><dd id="fifty"></dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <p class="notice" id="notice" role="status" hidden></p>
+
+  <section class="controls">
+    <label for="fen" data-t="fenLabel"></label>
+    <div class="fen-row">
+      <input id="fen" type="text" spellcheck="false" autocomplete="off" autocapitalize="off">
+      <button type="button" id="copy" data-t="copy"></button>
+    </div>
+    <p class="error" id="error" role="status" hidden></p>
+    <div class="actions">
+      <a class="button primary" id="analyse" data-t="analyse" href="https://lichess.org/analysis"></a>
+      <button type="button" class="button" id="flip" data-t="flip"></button>
+    </div>
+  </section>
+
+  <section class="about">
+    <p data-t="about"></p>
+  </section>
+</main>
+
+<footer>
+  <a href="https://github.com/ifilot/p2000c-chess" data-t="source"></a>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* qr.c -- QR code encoder (ISO/IEC 18004), cut down to one symbol.
  *
- * Version 5 (37 x 37 modules) at error correction level L has a single
- * Reed-Solomon block of 108 data and 26 error correction codewords, so
- * there is no interleaving, and no version information (only from version
- * 7 on). The text goes in byte mode. The mask is fixed (pattern 0, a
- * checkerboard) instead of chosen by the penalty rules, which only improve
- * the odds for poor scanners; tools/test_qr.py decodes the result.
+ * Version 6 (41 x 41 modules) at error correction level L has two
+ * Reed-Solomon blocks of equal size, 68 data and 18 error correction
+ * codewords each, which the symbol interleaves byte by byte; there is no
+ * version information (only from version 7 on). The text goes in byte
+ * mode. The mask is fixed (pattern 0, a checkerboard) instead of chosen by
+ * the penalty rules, which only improve the odds for poor scanners;
+ * tools/test_qr.py decodes the result.
  *
  * The matrix is one byte per module: bit 0 dark, bit 1 part of a function
  * pattern (finders, timing, alignment, format), which the data skips.
@@ -14,8 +15,12 @@
 #include <string.h>
 #include "qr.h"
 
-#define DATA_CODEWORDS 108
-#define ECC_CODEWORDS  26
+#define BLOCKS         2                    /* taken in turn: (k & 1) picks the block */
+#define BLOCK_DATA     68                   /* data codewords per block */
+#define BLOCK_ECC      18                   /* error correction codewords per block */
+#define BLOCK_SIZE     (BLOCK_DATA + BLOCK_ECC)
+#define DATA_CODEWORDS (BLOCKS * BLOCK_DATA)
+#define ECC_CODEWORDS  (BLOCKS * BLOCK_ECC)
 #define DARK           1
 #define FUNCTION       2
 #define LEVEL_L        1                    /* format bits of error correction level L */
@@ -70,7 +75,7 @@ static void function_patterns(void)
     rings(3, 3, 4, 0x14);                   /* finders with their light separators */
     rings(3, QR_SIZE - 4, 4, 0x14);
     rings(QR_SIZE - 4, 3, 4, 0x14);
-    rings(30, 30, 2, 0x02);                 /* the one alignment pattern */
+    rings(34, 34, 2, 0x02);                 /* the one alignment pattern */
 
     /* format: 5 bits, a BCH(15,5) remainder, XOR 5412h; stored twice */
     bits = data;
@@ -92,10 +97,13 @@ static void function_patterns(void)
     set(QR_SIZE - 8, 8, 1);                 /* the dark module */
 }
 
-/* Byte-mode segment, terminator and padding, then the error correction. */
+/* Byte-mode segment, terminator and padding, then the error correction of
+ * each block. cw holds the blocks one after the other, each its data
+ * codewords followed by its error correction codewords: the symbol's k-th
+ * codeword, the blocks taken in turn, is then cw[(k & 1) * BLOCK_SIZE + k / 2]. */
 static void codewords(const char *text, unsigned char len, unsigned char *cw)
 {
-    unsigned char *ecc = cw + DATA_CODEWORDS, *divisor = ecc + ECC_CODEWORDS;
+    unsigned char *divisor = cw + BLOCKS * BLOCK_SIZE, *data, *ecc;
     unsigned char i, j, prev, next, factor, root;
 
     /* mode 0100, count, the bytes, terminator 0000: whole nibbles */
@@ -108,27 +116,31 @@ static void codewords(const char *text, unsigned char len, unsigned char *cw)
     }
     for (i = len + 2; i < DATA_CODEWORDS; i++)
         cw[i] = (i - len) & 1 ? 0x11 : 0xEC;
+    memmove(cw + BLOCK_SIZE, cw + BLOCK_DATA, BLOCK_DATA);   /* room for the first block's ECC */
 
-    /* generator: the product of (x - 2^k) for k < ECC_CODEWORDS */
-    memset(divisor, 0, ECC_CODEWORDS);
-    divisor[ECC_CODEWORDS - 1] = 1;
+    /* generator: the product of (x - 2^k) for k < BLOCK_ECC */
+    memset(divisor, 0, BLOCK_ECC);
+    divisor[BLOCK_ECC - 1] = 1;
     root = 1;
-    for (i = 0; i < ECC_CODEWORDS; i++) {
-        for (j = 0; j < ECC_CODEWORDS; j++) {
+    for (i = 0; i < BLOCK_ECC; i++) {
+        for (j = 0; j < BLOCK_ECC; j++) {
             divisor[j] = gf_mul(divisor[j], root);
-            if (j + 1 < ECC_CODEWORDS)
+            if (j + 1 < BLOCK_ECC)
                 divisor[j] ^= divisor[j + 1];
         }
         root = gf_mul(root, 2);
     }
-    /* remainder of the data polynomial */
-    memset(ecc, 0, ECC_CODEWORDS);
-    for (i = 0; i < DATA_CODEWORDS; i++) {
-        factor = cw[i] ^ ecc[0];
-        memmove(ecc, ecc + 1, ECC_CODEWORDS - 1);
-        ecc[ECC_CODEWORDS - 1] = 0;
-        for (j = 0; j < ECC_CODEWORDS; j++)
-            ecc[j] ^= gf_mul(divisor[j], factor);
+    /* per block, the remainder of its data polynomial */
+    for (data = cw; data != divisor; data += BLOCK_SIZE) {
+        ecc = data + BLOCK_DATA;
+        memset(ecc, 0, BLOCK_ECC);
+        for (i = 0; i < BLOCK_DATA; i++) {
+            factor = data[i] ^ ecc[0];
+            memmove(ecc, ecc + 1, BLOCK_ECC - 1);
+            ecc[BLOCK_ECC - 1] = 0;
+            for (j = 0; j < BLOCK_ECC; j++)
+                ecc[j] ^= gf_mul(divisor[j], factor);
+        }
     }
 }
 
@@ -160,7 +172,7 @@ void qr_encode(const char *text, unsigned char len, unsigned char *work)
                 if (*m & FUNCTION)
                     continue;
                 if (bit < (DATA_CODEWORDS + ECC_CODEWORDS) * 8) {
-                    if (cw[bit >> 3] & (0x80 >> (bit & 7)))
+                    if (cw[(bit >> 3 & 1) * BLOCK_SIZE + (bit >> 4)] & (0x80 >> (bit & 7)))
                         *m = DARK;
                     bit++;
                 }
