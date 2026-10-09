@@ -186,3 +186,32 @@ GNU General Public License v3.0; see [LICENSE](LICENSE). The piece drawings
 in `tools/pieces/` are by Colin M.L. Burnett (Wikimedia Commons, GFDL/BSD/GPL),
 used under the GPL. The character-ROM font sheet used by the tooling belongs
 to the [p2000c-emulator](https://github.com/ifilot/p2000c-emulator) project.
+
+## Browser website
+
+[Play Chess in your browser](https://ifilot.github.io/p2000c-chess/). The original
+CP/M game boots automatically in the WebAssembly P2000C emulator. The page uses
+the ZuluBlaster green-screen style with Dutch/English instructions.
+
+For real hardware, [download the all-in-one ZuluBlaster SD-card image](https://github.com/ifilot/p2000c-zulublaster-sasi-drive/releases/latest):
+all six maintained games, CP/M, applications and development tools. You can
+also [try the complete Navigator bundle in your browser](https://ifilot.github.io/p2000c-zulublaster-sasi-drive/).
+
+Every push to `master` builds the game, compiles WebAssembly, checks that the
+boot image opens this game, and deploys `_site/` with GitHub Actions Pages.
+Pull requests build and validate without deploying. Pages must use **GitHub
+Actions** as its publishing source, with `master` allowed in `github-pages`.
+
+To build locally, use a ZuluBlaster checkout at `fea018441580b3ba17d5f54f493b639f515e189d`:
+
+```sh
+make build
+make -C ../p2000c-zulublaster-sasi-drive emulator-web
+python3 tools/build_site.py --toolchain ../p2000c-zulublaster-sasi-drive
+python3 -m http.server 8000 --directory _site
+```
+
+The shared emulator, disk builder, IPL and original font come from that pinned
+ZuluBlaster checkout. Copied web code retains GPL notices; the built site
+includes game/emulator licenses and `provenance.json`. Browser disk writes
+last for the current page session; reloading starts from the published image.

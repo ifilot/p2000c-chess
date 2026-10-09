@@ -1,50 +1,78 @@
 name: Pages
 
-# The web page the FEN page's QR code opens (site/, assembled by
-# tools/gen_site.py with the game's bitmaps), at https://ifilot.github.io/p2000c-chess/.
-# Needs Settings -> Pages -> Source: GitHub Actions.
-
 on:
   push:
     branches: [master]
-    paths:
-      - 'site/**'
-      - 'src/sprites.bin'
-      - 'src/sprites.h'
-      - 'tools/gen_site.py'
-      - '.github/workflows/pages.yml'
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  Z88DK_IMAGE: z88dk/z88dk@sha256:93f3c7c04486b300fdeccc600b48618e291ff1763aff608639fbfae0ee1623a5
+
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ifilot/p2000c-zulublaster-sasi-drive
+          ref: fea018441580b3ba17d5f54f493b639f515e189d
+          path: toolchain
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install emulator build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes cmake g++ emscripten
+      - name: Prepare pinned game compiler
+        run: |
+          docker pull "$Z88DK_IMAGE"
+          docker tag "$Z88DK_IMAGE" z88dk/z88dk:latest
+      - name: Compile this game
+        run: make build
+      - name: Compile WebAssembly and headless emulators
+        run: |
+          make -C toolchain emulator-web
+          cmake -S toolchain/tools/emulator -B toolchain/build/emulator -DCMAKE_BUILD_TYPE=Release
+          cmake --build toolchain/build/emulator --parallel 2
+      - name: Assemble site and verify direct game boot
+        run: |
+          python3 tools/build_site.py --toolchain toolchain --check toolchain/build/emulator/p2000c-mini
+          node tools/check_translations.cjs
+          node --check _site/app.js
+          node --check _site/game.js
+      - name: Configure Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Assemble the page
-        run: |
-          python3 tools/gen_site.py
-          for f in build/site/*.js; do node --check "$f"; done
-
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: build/site
-
-      - name: Deploy
+      - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

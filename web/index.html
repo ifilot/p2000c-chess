@@ -1,0 +1,99 @@
+<!doctype html>
+<!-- SPDX-FileCopyrightText: 2026 P2000C SASI Distribution contributors -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#020604">
+  <meta id="page-description" name="description" content="Strategie op het groene scherm. Speel tegen de P2000C op drie niveaus, met alle schaakregels en een bord in hoge resolutie.">
+  <title>Schaken — Philips P2000C</title>
+  <script>function routePosition() { let hash = location.hash; try { hash = decodeURIComponent(hash); } catch (_) {} if (hash.includes("/")) location.replace("position/" + location.hash); } routePosition(); window.addEventListener("hashchange", routePosition);</script>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="p2000c-web.js"></script>
+  <script defer src="game.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="./" aria-label="Schaken — Philips P2000C"
+       data-i18n-aria-label="homeLabel">
+      <span class="prompt">&gt;</span> PHILIPS P2000C<span class="cursor-mark">_</span>
+    </a>
+    <div class="header-actions">
+      <nav aria-label="Projectlinks" data-i18n-aria-label="projectLinks">
+        <a data-i18n="source" href="https://github.com/ifilot/p2000c-chess">BRONCODE</a>
+        <a data-i18n="download" href="https://github.com/ifilot/p2000c-chess/releases/latest">DOWNLOAD</a>
+      </nav>
+      <button id="language-toggle" class="language-toggle" type="button" role="switch"
+              aria-checked="false" aria-label="Taal: Nederlands. Schakel naar Engels.">
+        <span class="lang-option lang-nl">NL</span>
+        <span class="lang-divider" aria-hidden="true">/</span>
+        <span class="lang-option lang-en">EN</span>
+      </button>
+    </div>
+  </header>
+  <main>
+    <section class="intro">
+      <p class="eyebrow" data-i18n="eyebrow">EEN SPEL VOOR DE PHILIPS P2000C</p>
+      <h1 data-i18n="gameTitle">Schaken</h1>
+      <p data-i18n="gameDescription">Strategie op het groene scherm. Speel tegen de P2000C op drie niveaus, met alle schaakregels en een bord in hoge resolutie.</p>
+      <div class="intro-links"><a class="button-link primary" href="#play" data-i18n="play">SPEEL NU</a><a class="button-link" href="#bundle" data-i18n="bundle">ALLE SPELLEN OP ÉÉN IMAGE</a></div>
+    </section>
+    <section id="play" class="machine" aria-label="Philips P2000C-emulator" data-i18n-aria-label="machineLabel">
+      <div class="machine-top">
+        <div class="drive-lights" aria-label="Emulatorstatus" data-i18n-aria-label="emulatorStatus">
+          <span><i id="power-light"></i> POWER</span>
+          <span><i id="disk-light"></i> SASI</span>
+        </div>
+      </div>
+      <div id="terminal" class="terminal" tabindex="0" role="application"
+           aria-label="Interactief P2000C-scherm" data-i18n-aria-label="terminalLabel">
+        <div class="glass">
+          <div id="loading" class="loading" aria-live="polite">
+            <span id="loading-message">WEBASSEMBLY INITIALISEREN…</span>
+            <span class="loading-bar"><i id="loading-progress"></i></span>
+          </div>
+          <canvas id="display-screen" class="display-screen" width="1280" height="576"
+                  aria-label="P2000C-scherm met de originele 8 bij 12 tekengenerator" data-i18n-aria-label="canvasLabel"></canvas>
+        </div>
+      </div>
+      <div class="machine-controls">
+        <p id="status">Emulator laden…</p>
+        <label><span data-i18n="speed">Snelheid</span>
+          <select id="speed">
+            <option data-i18n="speedOriginal" value="1" selected>1× origineel</option>
+            <option data-i18n="speedTurbo4" value="4">4× turbo</option>
+            <option data-i18n="speedTurbo8" value="8">8× turbo</option>
+          </select>
+        </label>
+        <button id="reset" type="button" data-i18n="reset">RESET</button>
+      </div>
+      <div class="keyboard" aria-label="Bediening op het scherm" data-i18n-aria-label="controlsLabel"><div class="arrows"><button type="button" data-key="5" aria-label="Up" data-i18n-aria-label="up">↑</button><button type="button" data-key="19" aria-label="Left" data-i18n-aria-label="left">←</button><button type="button" data-key="24" aria-label="Down" data-i18n-aria-label="down">↓</button><button type="button" data-key="4" aria-label="Right" data-i18n-aria-label="right">→</button></div><button type="button" data-key="13">ENTER</button><button type="button" data-key="32" data-i18n="space">SPATIE</button><button type="button" data-key="49">1</button><button type="button" data-key="50">2</button><button type="button" data-key="51">3</button><button type="button" data-key="72">H</button><button type="button" data-key="87">W</button><button type="button" data-key="90">Z</button><button type="button" data-key="27">ESC</button></div>
+    </section>
+    <section class="about" aria-labelledby="about-title">
+      <h2 id="about-title" data-i18n="aboutTitle">Zo speelt u</h2>
+      <p data-i18n-html="aboutBody">Het originele CP/M-spel start automatisch in uw browser. Klik op het scherm voor toetsenbordinvoer. Reset start het spel opnieuw. De speltaal is Nederlands.</p>
+      <p data-i18n-html="controlsBody">Kies W (wit) of Z (zwart), daarna 1–3. Gebruik de pijltjes of WASD; Enter kiest en verplaatst een stuk. H: hulp · T: terugnemen · N: nieuw spel · Q: afsluiten.</p>
+    </section>
+    <section id="bundle" class="collection" aria-labelledby="bundle-title">
+      <h2 id="bundle-title" data-i18n="bundle">ALLE SPELLEN OP ÉÉN IMAGE</h2>
+      <p data-i18n="bundleBody">Neem de complete P2000C ZuluBlaster-distributie: alle zes spellen, CP/M, toepassingen en ontwikkelgereedschap in één kant-en-klare SD-kaartimage. Kies Navigator voor het spellenmenu, of de CP/M-editie voor de opdrachtprompt.</p>
+      <div class="collection-links">
+        <a class="button-link primary" href="https://github.com/ifilot/p2000c-zulublaster-sasi-drive/releases/latest" data-i18n="bundleDownload">DOWNLOAD DE COMPLETE IMAGE</a>
+        <a class="button-link" href="https://ifilot.github.io/p2000c-zulublaster-sasi-drive/" data-i18n="bundleTry">PROBEER NAVIGATOR</a>
+      </div>
+    </section>
+    <section class="screenshots" aria-labelledby="screenshots-title"><h2 id="screenshots-title" data-i18n="screenshots">IN BEELD</h2><div class="screenshot-grid">
+<figure><img src="screenshots/0.png" alt="Schaken: splash" loading="lazy" width="1920" height="1440"><figcaption data-i18n="screenCaption">Origineel P2000C-scherm</figcaption></figure><figure><img src="screenshots/1.png" alt="Schaken: board" loading="lazy" width="1920" height="1440"><figcaption data-i18n="screenCaption">Origineel P2000C-scherm</figcaption></figure></div></section>
+<section class="more-games"><h2 data-i18n="moreGames">MEER P2000C-SPELLEN</h2><nav aria-label="P2000C games"><a href="https://ifilot.github.io/p2000c-minesweeper/">Mijnenveger</a><a href="https://ifilot.github.io/p2000c-battleship/">Zeeslag</a><a href="https://ifilot.github.io/p2000c-othello/">Othello</a><a href="https://ifilot.github.io/p2000c-tetris/">Tetris</a><a href="https://ifilot.github.io/p2000c-kakuro/">Kakuro</a></nav></section>
+<section class="more-games"><a href="position/" data-i18n="position">STELLING BEKIJKEN</a></section>
+  </main>
+  <footer>
+    <p><span data-i18n="distribution">SCHAKEN</span> <span>v1.2.0</span></p>
+    <p data-i18n="museum">GEMAAKT VOOR HET HOME COMPUTER MUSEUM</p>
+  <p><a href="licenses/game.txt">GAME LICENSE</a> · <a href="licenses/zulublaster.txt">EMULATOR LICENSES</a></p>
+  </footer>
+</body>
+</html>
