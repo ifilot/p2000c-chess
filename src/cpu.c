@@ -1,14 +1,15 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* cpu.c -- the computer player.
  *
- * A negamax alpha-beta search over iterative deepening, with a capture-only
- * quiescence search at the leaves (so exchanges are played out before a
- * position is judged), check extensions, MVV-LVA capture ordering and two
+ * A negamax alpha-beta search over iterative deepening, with a quiescence
+ * search at the leaves (captures, promotions and all check evasions, so
+ * exchanges are played out before a position is judged), check extensions,
+ * MVV-LVA capture ordering and two
  * killer moves per ply. A position that repeats one of the game or of the
  * line being searched counts as a draw. The evaluation is the incremental material and
  * piece-square score from chess.c plus king placement (sheltered in the
- * middle game, central in the end game) and, when one side is far ahead in
- * the end game, a mop-up term that drives the lone king to the edge.
+ * middle game, central in the end game), endgame pawn structure and,
+ * when ahead against a pawnless side, a king mop-up term.
  *
  * Every level plays from a small opening book first. Level 1 looks one move
  * ahead (plus exchanges) and picks at random among the moves within 0.4
@@ -37,7 +38,9 @@ static unsigned char ply;                   /* distance from the root */
 static unsigned int sp;                     /* first free entry in moves[] */
 static unsigned char stop;                  /* time or node budget exhausted */
 static unsigned int start_ticks, budget_ticks, node_budget;
-static move_t killer[MAX_PLY][2];
+/* Ordering needs only the squares, not the flags or capture-order key. */
+typedef struct { unsigned char from, to; } killer_t;
+static killer_t killer[MAX_PLY][2];
 
 unsigned char random_byte(void)
 {
@@ -74,6 +77,50 @@ static const signed char KING_END[64] = {
 
 #define ENDGAME_PHASE 8
 
+#ifdef __SDCC
+extern int pawn_endgame(void);              /* rules.asm; C reference below */
+#else
+static const unsigned char PASSED[8] = { 0, 10, 15, 25, 40, 65, 100, 0 };
+static const unsigned char AHEAD[2][8] = {
+    { 254, 252, 248, 240, 224, 192, 128, 0 },
+    { 0, 1, 3, 7, 15, 31, 63, 127 }
+};
+
+/* Pawn-file masks are updated by make/unmake, avoiding a board scan at
+ * every leaf. Use these extra terms only in endgames on the slow Z80. */
+static int pawn_endgame(void)
+{
+    unsigned char colour, file, m, r, enemy, base, other;
+    int value, total = 0;
+    for (colour = 0; colour < 2; colour++) {
+        pawn_present[colour] = 0;
+        base = colour * 8; other = base ^ 8;
+        for (file = 0; file < 8; file++) {
+            m = pawn_files[base + file];
+            if (!m) continue;
+            pawn_present[colour] = 1;
+            value = (m & (m - 1)) ? -12 : 0; /* doubled pawn file */
+            if (!(file && pawn_files[base + file - 1]) &&
+                !(file < 7 && pawn_files[base + file + 1]))
+                value -= 12;              /* isolated pawn file */
+            enemy = pawn_files[other + file];
+            if (file) enemy |= pawn_files[other + file - 1];
+            if (file < 7) enemy |= pawn_files[other + file + 1];
+            r = 0;
+            if (colour) {
+                while (!(m & 1)) { m >>= 1; r++; }
+            } else {
+                while (m >>= 1) r++;
+            }
+            if (!(enemy & AHEAD[colour][r]))
+                value += PASSED[colour ? 7 - r : r];
+            total += colour ? -value : value;
+        }
+    }
+    return total;
+}
+#endif
+
 static unsigned char centre_distance(unsigned char sq)
 {
     unsigned char f = FILE_OF(sq), r = RANK_OF(sq);
@@ -96,10 +143,11 @@ static int evaluate(void)
         s += KING_MID[wk ^ 56] - KING_MID[bk];
     else {
         s += KING_END[wk ^ 56] - KING_END[bk];
+        s += pawn_endgame();
         /* mop-up: the stronger side drives the other king to the edge */
-        if (s > 250)
+        if (s > 250 && !pawn_present[1])
             s += 10 * centre_distance(king_sq[1]) + 4 * (14 - distance(king_sq[0], king_sq[1]));
-        else if (s < -250)
+        else if (s < -250 && !pawn_present[0])
             s -= 10 * centre_distance(king_sq[0]) + 4 * (14 - distance(king_sq[0], king_sq[1]));
     }
     return side == WHITE ? s : -s;
@@ -107,9 +155,9 @@ static int evaluate(void)
 
 /* --- move ordering -------------------------------------------------------------- */
 
-static unsigned char same(const move_t *a, const move_t *b)
+static unsigned char same(const move_t *a, const killer_t *b)
 {
-    return a->from == b->from && a->to == b->to && a->flags == b->flags;
+    return a->from == b->from && a->to == b->to;
 }
 
 /* Once the captures are through, the killers of this ply (quiet moves that
@@ -170,27 +218,46 @@ static int quiesce(int alpha, int beta)
 {
     int stand, s;
     unsigned int i, start = sp, end;
-    unsigned char victim;
+    unsigned char victim, check, legal = 0;
 
+    if (halfmove >= 100 || repetitions())
+        return 0;
     count_node();
-    stand = evaluate();
-    if (stand >= beta)
-        return stand;
-    if (stand > alpha)
-        alpha = stand;
     if (ply >= MAX_PLY - 1 || sp > STACK_GUARD)
-        return alpha;
-    end = gen_moves(start, 1);
+        return evaluate();
+    check = in_check(side);
+    end = gen_moves(start, 0);
+    /* Stand pat is valid only if a legal move exists and we are not in
+     * check. Probe just one legal move; keep this list for the captures. */
+    if (!check) {
+        for (i = start; i < end; i++) {
+            mover_in_check = 0;
+            if (make_move(&moves[i])) {
+                unmake_move();
+                break;
+            }
+        }
+        if (i == end)
+            return 0;                       /* stalemate, even outside the window */
+    }
+    stand = evaluate();
+    if (!check && stand >= beta)
+        return stand;
+    if (!check && stand > alpha)
+        alpha = stand;
     sp = end;
     for (i = start; i < end; i++) {
+        if (!check && !(moves[i].flags & (MF_CAPTURE | MF_PROMO)))
+            continue;
         pick(i, end);
         /* delta pruning: even winning the victim cannot lift the score to alpha */
         victim = (moves[i].flags & MF_EP) ? PAWN : TYPE(board[moves[i].to]);
-        if (!(moves[i].flags & MF_PROMO) && stand + piece_value[victim] + 200 <= alpha)
+        if (!check && !(moves[i].flags & MF_PROMO) && stand + piece_value[victim] + 200 <= alpha)
             continue;
-        mover_in_check = 1;                 /* not known here: test every capture */
+        mover_in_check = check;
         if (!make_move(&moves[i]))
             continue;
+        legal = 1;
         ply++;
         s = -quiesce(-beta, -alpha);
         ply--;
@@ -204,6 +271,8 @@ static int quiesce(int alpha, int beta)
         }
     }
     sp = start;
+    if (check && !legal && !stop)
+        return -MATE + ply;
     return alpha;
 }
 
@@ -249,7 +318,8 @@ static int search(unsigned char depth, int alpha, int beta)
             if (s >= beta) {
                 if (!(moves[i].flags & MF_CAPTURE) && !same(&moves[i], &killer[ply][0])) {
                     killer[ply][1] = killer[ply][0];
-                    killer[ply][0] = moves[i];
+                    killer[ply][0].from = moves[i].from;
+                    killer[ply][0].to = moves[i].to;
                 }
                 break;
             }

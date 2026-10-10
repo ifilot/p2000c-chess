@@ -45,7 +45,6 @@ static const char *const HELP[] = {
     "  T of BS               zet terugnemen          H   dit hulpscherm",
     "  N                     nieuwe partij           Q   stoppen (met bevestiging)",
     "  F                     stelling als FEN-tekst en QR-code (om te analyseren)",
-    "",
     "SPELREGELS",
     "  Wit begint. Rokeren: zet de koning twee velden opzij, de toren volgt vanzelf.",
     "  En passant: sla een pion die net twee velden zette alsof hij er een zette.",
@@ -56,7 +55,8 @@ static const char *const HELP[] = {
     "",
     "NOTATIE  K koning  D dame  T toren  L loper  P paard, pionzetten zonder letter;",
     "         x slaat, + schaak, # mat, O-O en O-O-O rokade",
-    "NIVEAUS  1 licht: een zet vooruit   2 normaal: twee zetten   3 zwaar: tot 10 s",
+    "NIVEAUS  ca. Elo / gem. seconden per zet:",
+    "  1 licht 330-880 / 3,5    2 normaal 990-1260 / 3,4    3 zwaar 1240-1450 / 6,8",
     "Druk op een toets om terug te keren.",
 };
 
@@ -292,13 +292,13 @@ static void draw_start_screen(void)
     con_at(ROWCOL(8, 29));  con_puts("voor de Philips P2000C");
     con_at(ROWCOL(9, 14));  con_puts("versie " VERSION "   -   " REPO_URL);
 
-    draw_box(11, 12, 56, 8);
+    draw_box(11, 12, 56, 9);
     con_at(ROWCOL(12, 14)); con_puts("Kleur:");
     show_colour();
     con_at(ROWCOL(14, 14)); con_puts("Sterkte van de computer:");
-    con_at(ROWCOL(15, 20)); con_puts("1  Licht     kijkt een zet vooruit");
-    con_at(ROWCOL(16, 20)); con_puts("2  Normaal   kijkt twee zetten vooruit");
-    con_at(ROWCOL(17, 20)); con_puts("3  Zwaar     denkt tot 10 seconden");
+    con_at(ROWCOL(15, 14)); con_puts("1  Licht       330-880  Elo   3,5 s/zet");
+    con_at(ROWCOL(16, 14)); con_puts("2  Normaal     990-1260 Elo   3,4 s/zet");
+    con_at(ROWCOL(17, 14)); con_puts("3  Zwaar      1240-1450 Elo   6,8 s/zet");
 
     con_at(ROWCOL(20, 6));  con_puts("W/Z: kleur   1, 2 of 3: spelen   D: demo   H: hulp   Q: naar CP/M");
 }

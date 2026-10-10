@@ -1,7 +1,7 @@
 # Schaken (chess) for the Philips P2000C
 
 [![Build](https://github.com/ifilot/p2000c-chess/actions/workflows/build.yml/badge.svg)](https://github.com/ifilot/p2000c-chess/actions/workflows/build.yml)
-[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/ifilot/p2000c-chess/releases)
+[![Version](https://img.shields.io/badge/version-1.2.1-blue)](https://github.com/ifilot/p2000c-chess/releases)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 Chess against the computer for the Philips P2000C running CP/M. The board
@@ -106,18 +106,53 @@ key returns to the board (redrawn in about three and a half).
 All levels open from a small book of main lines, and choose at random among
 moves of (nearly) equal value, so games vary.
 
-| Level | Search | Time per move (4 MHz) |
+| Level | Search | Example time per move (4 MHz, after 1.a3) |
 | --- | --- | --- |
-| 1 *licht* | one move ahead plus exchanges, picks among moves within 0.4 pawn of the best | under a second |
-| 2 *normaal* | two moves ahead plus exchanges | about a second |
-| 3 *zwaar* | deepens (usually to three or four moves) until about 10 seconds are spent | up to 10 s |
+| 1 *licht* | one move ahead plus exchanges, picks among moves within 0.4 pawn of the best | 0.5 s |
+| 2 *normaal* | two moves ahead plus exchanges | 1.4 s |
+| 3 *zwaar* | deepens while time permits | 7.2 s |
+
+Tactical positions take longer. Search time budgets are 10 seconds at
+level 1, 5 seconds at level 2 and about 9.3 seconds at level 3. The clock
+is checked in batches of nodes, so these budgets can be exceeded.
+
+A fresh 140-game test on 2026-10-10, using the endgame pawn evaluation on
+the emulated 4 MHz Z80, gave the following approximate strength estimates
+(rounded):
+
+| Level | Previous estimate | New estimate | Approximate 95% statistical interval |
+| --- | --- | --- | --- |
+| 1 | 730 | 660 | 330–880 |
+| 2 | 1020 | 1130 | 990–1260 |
+| 3 | 1310 | 1340 | 1240–1450 |
+
+The difficulty-selection and help screens show the estimated Elo ranges
+and average thinking times per move.
+
+The test used 80 games against Stockfish 16 at its 1320 and 1520 settings
+(100,000 nodes per move), plus 60 games between the app's levels, with both
+colours represented equally. These estimates are relative to Stockfish's
+configured Elo scale, not established human ratings. The intervals exclude
+calibration and model error; see the testing commands below. The engine's
+average thinking times against Stockfish were 3.5, 3.4 and 6.8 seconds at
+levels 1–3, excluding display updates; the longest was 12.7 seconds.
+
+Level 3 scored 20/40 (16 wins, 8 draws, 16 losses) in separate games against
+the previous engine at the same BIOS time budgets. The confidence ranges
+overlap the previous estimates: this test does not establish an overall
+strength gain. Level 1 lost all 20 Stockfish games; its finite estimate
+depends on games against the stronger app levels and is particularly
+uncertain. A PVS/history/futility-pruning prototype scored 19/40 against
+the previous engine and was discarded. See [the evaluation summary](docs/engine-evaluation.json).
 
 The engine is an alpha-beta search with iterative deepening, a capture
 search at the leaves, check extensions, killer moves and most-valuable-
 victim ordering; the evaluation is material, piece-square tables, king
-safety or centralisation depending on the phase, and a mop-up term that
-drives a lone king to the edge. Repeated positions count as draws inside
-the search.
+safety or centralisation depending on the phase, passed-pawn bonuses and
+penalties for doubled and isolated pawn files in endgames, and a mop-up
+term when the opponent has no pawns. Pawn-file masks update incrementally
+and the extra evaluation runs in Z80 assembly. Repeated positions count
+as draws inside the search.
 
 ## Build
 
@@ -139,6 +174,8 @@ emulator, character-ROM font):
 ```sh
 make perft              # move generator against the published perft counts (native)
 make selfplay           # engine games on the host
+make searchtest         # stalemate, mate and quiet check evasions at search leaves
+make zsearchtest        # the same terminal-leaf checks with the Z80 assembly rules
 make qrtest             # FEN of random games against the rules model, QR codes through a decoder
 make site               # the web page the QR code opens -> build/site/ (serve it: python3 -m http.server -d build/site)
 make zperft             # perft on the Z80 with rules.asm, in the headless emulator
@@ -148,7 +185,72 @@ make screenshot         # plain raster dump (green on black) -> build/board.png
 make deploy             # build/HD1_256.hda: second SASI disk with the game on F:
 make sprites            # regenerate the two parts of SCHAKEN.GFX (needs rsvg-convert)
 python3 tools/bench.py  # emulated thinking time per level
+python3 tools/match_stockfish.py --games 2  # native matches against local Stockfish
 ```
+
+In native mode, the Stockfish runner needs only Python, gcc and a local Stockfish executable
+(`--stockfish PATH` overrides its location). It plays both colours at each
+level against unrestricted Stockfish, skill 0, and the UCI 1320 strength
+setting, then tests three basic winning endgames. Every legal move set and
+resulting FEN is checked against the separate Python rules model. Results,
+coordinate moves and search statistics are saved to
+`build/stockfish-results.json`. These matches use the native engine's node
+budgets, not the Z80 clock or assembly rules; use `tools/bench.py` to measure
+emulated thinking time. The small match sample and Stockfish's strength
+settings should not be interpreted as a measured Elo rating.
+
+For a larger strength estimate, run:
+
+```sh
+python3 tools/match_stockfish.py --games 20 --elos 1320 1520 1720 --nodes 100000 --no-endgames --out build/ratings.json
+```
+
+`--games` counts games per colour, level and opponent. The JSON includes
+an Elo performance estimate fitted to the game scores, with approximate
+95% statistical intervals. Zero wins/draws produce an upper bound instead
+of a finite rating. These numbers are relative to Stockfish's configured
+Elo opponents under the chosen node limits, not FIDE, chess.com or lichess
+ratings. Stockfish 16 only supports Elo settings from 1320 to 3190;
+estimates below 1320 extrapolate from results against its weakest setting.
+Its [strength calibration](https://github.com/official-stockfish/Stockfish/blob/sf_16/src/search.cpp#L85)
+uses a different time control (60 seconds plus 0.6 seconds per move) and
+the CCRL engine rating scale. Native search budgets also approximate the
+P2000C's clock-based search; the intervals do not include those systematic
+differences. Completed games are saved after each match.
+
+For estimates using the actual 4 MHz Z80 engine and its BIOS time budgets,
+build the persistent engine-only emulator bridge (requires the sibling
+disk-tool checkout with its native emulator already built):
+
+```sh
+make zmatch
+python3 tools/match_stockfish.py --z80 --games 10 --elos 1320 1520 --nodes 100000 --no-endgames --out build/z80-anchors.json
+python3 tools/rate_chess.py --z80 --input build/z80-anchors.json --games 10 --out build/z80-ratings.json
+```
+
+The second command plays Stockfish matches with both colours. The third
+adds games between all three app levels, so a weak level can be rated
+through stronger levels even if it loses every game to Stockfish. Both
+runners check every legal move set and resulting FEN against the separate
+Python rules model. The Z80 mailbox uses the same engine optimisation
+flags and assembly rules as the game, the real emulated 60 Hz BIOS timer,
+and temporary copies of the disks; the graphics interface is omitted.
+Stockfish still uses the requested node limit, so these remain approximate
+performance estimates on its configured Elo scale. The app's 300-ply
+maximum game length is counted as a draw. Native and Z80 results cannot
+be combined in one rating fit.
+
+To compare revisions directly, save `ZMATCH.COM` and `zmatch.map` in a
+separate directory before rebuilding the engine, then run:
+
+```sh
+python3 tools/compare_engines.py --baseline build/baseline-1.2.1 --levels 3 --games 20 --seed 40000
+```
+
+This plays 40 games with both colours at the same level and BIOS time
+budget. `--engine-dir` selects a saved binary for the Stockfish and rating
+runners; `--seed` selects fresh game seeds. New rating files carry binary
+fingerprints, and the fitter rejects data from a different binary.
 
 `make test` plays with the cursor keys like a player would, reads the
 computer's moves from the panel and checks every one, the move list and the

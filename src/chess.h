@@ -80,6 +80,14 @@ extern undo_t hist[MAX_HIST];
 extern move_t moves[MOVE_STACK];
 
 extern const int piece_value[7];
+/* One colour's material + square scores; Black mirrors and negates them.
+ * Kings are evaluated separately by cpu.c. */
+extern int psq_tab[5][64];
+extern unsigned char pawn_files[16];        /* colour x file, bit per rank */
+extern unsigned char pawn_present[2];
+extern const unsigned char pawn_rank_bits[8];
+#define PIECE_SCORE(p, sq) (TYPE(p) == KING ? 0 : ((p) & BLACK) ? \
+    -psq_tab[TYPE(p) - 1][SQ64(sq) ^ 56] : psq_tab[TYPE(p) - 1][SQ64(sq)])
 
 /* Standard starting position. */
 extern void chess_init(void);

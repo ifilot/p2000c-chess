@@ -8,7 +8,7 @@
 extern unsigned char cpu_level;             /* 1-3 */
 extern unsigned int cpu_seed;               /* random state, stirred by the game */
 extern unsigned int cpu_nodes;              /* nodes searched for the last move */
-extern unsigned char cpu_depth;             /* last completed search depth */
+extern unsigned char cpu_depth;             /* last selected depth; may be a partial iteration */
 
 /* Chooses a move for `side`, which must have a legal move. */
 extern void cpu_choose(move_t *best);

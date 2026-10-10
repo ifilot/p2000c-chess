@@ -3,6 +3,36 @@
 All notable changes to Schaken for the Philips P2000C are recorded here. The
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-10-10
+
+### Fixed
+
+- The leaf search recognises stalemate before using a static score, searches
+  quiet replies to check, and recognises mate and rule draws during exchanges.
+- Killer-move records store only their source and destination squares,
+  preserving the P2000C's memory margin with the corrected search.
+
+### Added
+
+- Endgame passed-pawn bonuses and penalties for doubled and isolated pawn
+  files, inspired by the CX16 engine. Pawn masks update incrementally;
+  scoring runs in Z80 assembly and matches the native C reference.
+- The king mop-up bonus applies only when the opponent has no pawns.
+- Shared piece-square tables for both colours save 896 bytes of Z80 RAM
+  without changing their scores, making room for the endgame evaluation.
+- Hardware-timed comparisons with saved engine binaries and binary
+  fingerprints in rating reports.
+- The difficulty-selection and help screens show estimated Elo ranges:
+  Light 330-880, Normal 990-1260, Heavy 1240-1450, with average thinking
+  times per move of 3.5, 3.4 and 6.8 seconds.
+- A fresh 140-game hardware-timed rating evaluation and 40 games against
+  the previous engine. The latter scored 20/40, so an overall strength
+  gain is not established. The evaluation summary records both variants.
+- `make searchtest`: regressions for terminal search leaves, quiet check
+  evasions, and restoring the position after searching. Runs in CI.
+- Local Stockfish matches and native level matches with approximate Elo
+  performance estimates and statistical intervals.
+
 ## [1.2.0] - 2026-09-26
 
 ### Changed
@@ -76,6 +106,7 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Perft checks natively and on the emulated Z80, self-play, emulator game
   tests, and a SASI deployment image.
 
+[1.2.1]: https://github.com/ifilot/p2000c-chess/releases/tag/v1.2.1
 [1.2.0]: https://github.com/ifilot/p2000c-chess/releases/tag/v1.2.0
 [1.1.0]: https://github.com/ifilot/p2000c-chess/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ifilot/p2000c-chess/releases/tag/v1.0.0

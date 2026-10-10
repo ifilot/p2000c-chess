@@ -23,6 +23,7 @@ PUBLIC _gen_moves
 PUBLIC _attacked_fc
 PUBLIC _make_move
 PUBLIC _unmake_move
+PUBLIC _pawn_endgame
 
 EXTERN _side
 EXTERN _ep
@@ -33,6 +34,9 @@ EXTERN _hist_len
 EXTERN _halfmove
 EXTERN _phase
 EXTERN _score
+EXTERN _pawn_files
+EXTERN _pawn_rank_bits
+EXTERN _pawn_present
 EXTERN _hash
 EXTERN _king_sq
 EXTERN _mover_in_check
@@ -52,6 +56,7 @@ defc ROOK   = 4
 defc QUEEN  = 5
 defc KING   = 6
 defc WHITE  = 0x08
+defc BLACK  = 0x10
 
 defc NO_SQ  = 0xFF
 defc ZOBRIST_SIDE = 0x5A3C              ; as in chess.c
@@ -1147,6 +1152,37 @@ um_castle_long:
         ld l,a
         ld (hl),d
 um_state:
+        ; Reverse the mover's and victim's pawn-mask changes. A promotion
+        ; restores a pawn only at its source, not at the promoted square.
+        ld c,(ix+U_FROM)
+        ld hl,_board
+        ld l,c
+        ld a,(hl)
+        ld d,a
+        call toggle_pawn
+        ld c,(ix+U_TO)
+        ld a,(ix+U_FLAGS)
+        and 7
+        jr nz,um_pawn_victim
+        ld a,d
+        call toggle_pawn
+um_pawn_victim:
+        ld a,(ix+U_FLAGS)
+        and MF_EP
+        jr z,um_pawn_target
+        ld a,b
+        cp WHITE
+        ld a,c
+        jr nz,um_pawn_ep_black
+        sub 16
+        jr um_pawn_ep
+um_pawn_ep_black:
+        add a,16
+um_pawn_ep:
+        ld c,a
+um_pawn_target:
+        ld a,(ix+U_CAPTURED)
+        call toggle_pawn
         ld a,(ix+U_CASTLE)
         ld (_castle),a
         ld a,(ix+U_EP)
@@ -1174,7 +1210,7 @@ phase_of:
         ld e,(hl)
         ret
 
-; DE = offset of (piece A, square C) in psq_tab and zobrist:
+; DE = offset of (piece A, square C) in zobrist:
 ; index (0-5 White pawn..king, 6-11 Black) * 128 + (0..63 square) * 2.
 piece_offset:
         ld e,a
@@ -1198,35 +1234,275 @@ po_white:
         ld e,a
         ret
 
-; score -= value, hash ^= key of piece A on square C (C and B survive)
-remove_piece:
-        call piece_offset
+; Endgame pawn-file evaluation; C reference: cpu.c:pawn_endgame().
+; IX/IY walk own/enemy files, B=file, C=colour, DE=White's total.
+; This is a leaf routine: scratch bytes are not live across search calls.
+_pawn_endgame:
+        push ix
+        push iy
+        xor a
+        ld (_pawn_present),a
+        ld (_pawn_present+1),a
+        ld ix,_pawn_files
+        ld iy,_pawn_files+8
+        ld de,0
+        ld bc,0
+pe_file:
+        ld a,(ix+0)
+        or a
+        jp z,pe_next
+        ld (pe_mask),a
+        ld h,a
+        dec a
+        and h
+        ld a,0
+        jr z,pe_value
+        ld a,-12
+pe_value:
+        ld (pe_val),a
+        ld a,c
+        or a
+        ld a,1
+        jr nz,pe_black_present
+        ld (_pawn_present),a
+        jr pe_own_left
+pe_black_present:
+        ld (_pawn_present+1),a
+pe_own_left:
+        ld a,b
+        or a
+        jr z,pe_own_right
+        ld a,(ix-1)
+        or a
+        jr nz,pe_connected
+pe_own_right:
+        ld a,b
+        cp 7
+        jr z,pe_isolated
+        ld a,(ix+1)
+        or a
+        jr nz,pe_connected
+pe_isolated:
+        ld a,(pe_val)
+        sub 12
+        ld (pe_val),a
+pe_connected:
+        ld a,(iy+0)
+        ld h,a
+        ld a,b
+        or a
+        jr z,pe_enemy_right
+        ld a,(iy-1)
+        or h
+        ld h,a
+pe_enemy_right:
+        ld a,b
+        cp 7
+        jr z,pe_enemy_ready
+        ld a,(iy+1)
+        or h
+        ld h,a
+pe_enemy_ready:
+        ld a,h
+        ld (pe_enemy),a
+        ld l,0
+        ld a,c
+        or a
+        ld a,(pe_mask)
+        jr nz,pe_black_rank
+pe_white_rank:
+        srl a
+        jr z,pe_rank_ready
+        inc l
+        jr pe_white_rank
+pe_black_rank:
+        bit 0,a
+        jr nz,pe_rank_ready
+        srl a
+        inc l
+        jr pe_black_rank
+pe_rank_ready:
+        ld a,l
+        ld (pe_rank),a
+        ld a,c
+        rlca
+        rlca
+        rlca
+        or l
+        ld l,a
+        ld h,0
+        push bc
+        ld bc,pe_ahead
+        add hl,bc
+        pop bc
+        ld a,(pe_enemy)
+        and (hl)
+        jr nz,pe_total
+        ld a,c
+        or a
+        ld a,(pe_rank)
+        jr z,pe_bonus_rank
+        xor 7
+pe_bonus_rank:
+        ld l,a
+        ld h,0
+        push bc
+        ld bc,pe_passed
+        add hl,bc
+        pop bc
+        ld a,(pe_val)
+        add a,(hl)
+        ld (pe_val),a
+pe_total:
+        ld a,(pe_val)
+        ld l,a
+        add a,a
+        sbc a,a
+        ld h,a                  ; sign extend the file's score
+        ld a,c
+        or a
+        jr z,pe_sum
+        xor a
+        sub l
+        ld l,a
+        sbc a,a
+        sub h
+        ld h,a
+pe_sum:
+        add hl,de
+        ex de,hl
+pe_next:
+        inc ix
+        inc iy
+        inc b
+        ld a,b
+        cp 8
+        jp nz,pe_file
+        inc c
+        ld a,c
+        cp 2
+        jr z,pe_done
+        ld iy,_pawn_files
+        ld b,0
+        jp pe_file
+pe_done:
+        ex de,hl
+        pop iy
+        pop ix
+        ret
+
+; Toggle piece A's pawn-file bit at C; preserve all input registers.
+toggle_pawn:
+        cp WHITE | PAWN
+        jr z,tp_pawn
+        cp BLACK | PAWN
+        ret nz
+tp_pawn:
+        push af
         push de
+        push hl
+        ld e,a
+        ld a,c
+        and 7
+        bit 4,e
+        jr z,tp_index
+        add a,8
+tp_index:
+        ld l,a
+        ld h,0
+        ld de,_pawn_files
+        add hl,de
+        push hl
+        ld a,c
+        and 0x70
+        rrca
+        rrca
+        rrca
+        rrca
+        ld e,a
+        ld d,0
+        ld hl,_pawn_rank_bits
+        add hl,de
+        ld a,(hl)
+        pop hl
+        xor (hl)
+        ld (hl),a
+        pop hl
+        pop de
+        pop af
+        ret
+
+; DE = signed material + square score of piece A on C. B/C survive.
+; The five White tables are shared by mirroring and negating for Black.
+square_score:
+        ld e,a
+        and 7
+        cp 6
+        jr nz,ss_piece
+        ld de,0
+        ret
+ss_piece:
+        push af
+        ld a,c
+        bit 4,e
+        jr z,ss_white_square
+        xor 0x70
+ss_white_square:
+        ld l,a
+        pop af
+        push de                 ; keep the original piece's colour
+        dec a
+        rrca
+        ld d,a
+        and 0x80
+        ld e,a
+        ld a,d
+        and 0x7F
+        ld d,a
+        ld a,l
+        and 7
+        add a,l
+        or e
+        ld e,a
         ld hl,_psq_tab
         add hl,de
         ld e,(hl)
         inc hl
         ld d,(hl)
+        pop hl
+        bit 4,l
+        ret z
+        xor a
+        sub e
+        ld e,a
+        sbc a,a
+        sub d
+        ld d,a
+        ret
+
+; score -= value, hash ^= key of piece A on square C (C and B survive)
+remove_piece:
+        call toggle_pawn
+        push af
+        call square_score
         ld hl,(_score)
         or a
         sbc hl,de
         ld (_score),hl
-        pop de
+        pop af
+        call piece_offset
         jr xor_zobrist
 
 ; score += value, hash ^= key of piece A on square C
 add_piece:
-        call piece_offset
-        push de
-        ld hl,_psq_tab
-        add hl,de
-        ld e,(hl)
-        inc hl
-        ld d,(hl)
+        call toggle_pawn
+        push af
+        call square_score
         ld hl,(_score)
         add hl,de
         ld (_score),hl
-        pop de
+        pop af
+        call piece_offset
 xor_zobrist:
         ld hl,_zobrist
         add hl,de
@@ -1274,6 +1550,12 @@ hash_castle:
 
 SECTION rodata_user
 
+pe_passed:
+        defb 0, 10, 15, 25, 40, 65, 100, 0
+pe_ahead:
+        defb 254, 252, 248, 240, 224, 192, 128, 0
+        defb 0, 1, 3, 7, 15, 31, 63, 127
+
 phase_weight:
         defb 0, 0, 1, 1, 2, 4, 0
 
@@ -1287,6 +1569,11 @@ dirs_orth:
         defb 16, 1, -1, -16
 
 SECTION bss_user
+
+pe_mask:   defs 1
+pe_val:    defs 1
+pe_enemy:  defs 1
+pe_rank:   defs 1
 
 gm_caps:   defs 1
 gm_me:     defs 1

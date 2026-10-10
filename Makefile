@@ -5,7 +5,7 @@
 # and dist/pro/ disk images) and, for the character-ROM font, p2000c-emulator.
 # `make perft` and `make selfplay` build the rules and the engine natively (gcc).
 
-VERSION    = 1.2.0
+VERSION    = 1.2.1
 BUILD_DATE = $(shell date +%Y-%m-%d)
 
 # sdcc's register-allocation effort. The hot paths are assembly (rules.asm,
@@ -46,7 +46,7 @@ DEPLOY_IMAGE  = build/HD1_256.hda
 HOSTCC = gcc
 HOSTCFLAGS = -O2 -Wall
 
-.PHONY: all build run screenshot test sprites deploy perft zperft selfplay qrtest site clean
+.PHONY: all build run screenshot test sprites deploy perft zperft selfplay searchtest zsearchtest zmatch qrtest site clean
 
 all: build
 
@@ -108,6 +108,27 @@ qrtest:
 	mkdir -p build
 	$(HOSTCC) $(HOSTCFLAGS) -o build/qrdump tools/qrdump.c src/chess.c src/qr.c
 	python3 tools/test_qr.py
+
+# Terminal search leaves and quiet replies to check (native, no dependencies).
+searchtest:
+	python3 tools/test_search.py
+
+# The terminal-leaf regressions with 16-bit ints and assembly rules on Z80.
+zsearchtest:
+	mkdir -p build
+	$(ZCC) +cpm -vn -clib=sdcc_iy -O3 -SO2 -create-app -m tools/zsearchtest.c src/chess.c src/rules.asm src/memory.asm -o build/zsearch
+	rm -f build/zsearch build/zsearch_CODE.bin
+	python3 tools/run_headless.py build/ZSEARCH.COM "SEARCH PASS" > build/zsearchtest.log
+	cat build/zsearchtest.log
+	python3 tools/test_search.py --z80-output build/zsearchtest.log
+
+# Engine-only mailbox program: real Z80 rules, search and BIOS time budget.
+zmatch:
+	mkdir -p build
+	$(ZCC) $(ZCCFLAGS) tools/zmatch.c src/chess.c src/cpu.c src/clock.c src/rules.asm src/memory.asm -o build/zmatch
+	rm -f build/zmatch build/zmatch_CODE.bin
+	g++ -std=c++20 -O2 -I$(DISKTOOL)/tools/emulator/src tools/emulator_bridge.cpp $(DISKTOOL)/build/emulator/CMakeFiles/p2000c-mini.dir/src/core/*.o $(DISKTOOL)/build/emulator/libz80.a $(DISKTOOL)/build/emulator/libi8088.a -o build/emulator-bridge.tmp
+	mv build/emulator-bridge.tmp build/emulator-bridge
 
 # The web page the QR code opens -> build/site/ (published by the Pages
 # workflow); to look at it: python3 -m http.server -d build/site

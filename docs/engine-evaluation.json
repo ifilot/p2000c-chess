@@ -1,0 +1,198 @@
+{
+  "date": "2026-10-10",
+  "version": "1.2.1",
+  "machine": "Emulated Philips P2000C, Z80 at 4 MHz, BIOS clock",
+  "retained_changes": [
+    "Shared mirrored piece-square tables: 896-byte RAM saving",
+    "Incremental 16-byte pawn-file masks, restored on unmake",
+    "Assembly endgame bonuses for advanced passed pawns and penalties for doubled/isolated files",
+    "King mop-up only against a pawnless opponent"
+  ],
+  "scale": "Stockfish 16 UCI_Elo performance under fixed node limits; not a human rating",
+  "model": "Elo logistic expected score; draws count as half a point",
+  "uncertainty": "Approximate 95% profile likelihood intervals, excluding calibration/hardware/model error",
+  "rating_games": 140,
+  "first_game_seed": 40000,
+  "stockfish_anchors": [
+    {
+      "source": "build/rating-endgame-1320.json",
+      "stockfish": "Stockfish 16",
+      "nodes_per_move": 100000
+    },
+    {
+      "source": "build/rating-endgame-1520.json",
+      "stockfish": "Stockfish 16",
+      "nodes_per_move": 100000
+    }
+  ],
+  "previous_ratings": [
+    {
+      "level": 1,
+      "estimated_elo": 730,
+      "approximate_95_percent_interval": [
+        503,
+        913
+      ],
+      "finite_estimate": true
+    },
+    {
+      "level": 2,
+      "estimated_elo": 1020,
+      "approximate_95_percent_interval": [
+        858,
+        1158
+      ],
+      "finite_estimate": true
+    },
+    {
+      "level": 3,
+      "estimated_elo": 1311,
+      "approximate_95_percent_interval": [
+        1201,
+        1416
+      ],
+      "finite_estimate": true
+    }
+  ],
+  "current_ratings": [
+    {
+      "level": 1,
+      "estimated_elo": 655,
+      "approximate_95_percent_interval": [
+        330,
+        877
+      ],
+      "finite_estimate": true
+    },
+    {
+      "level": 2,
+      "estimated_elo": 1134,
+      "approximate_95_percent_interval": [
+        994,
+        1260
+      ],
+      "finite_estimate": true
+    },
+    {
+      "level": 3,
+      "estimated_elo": 1343,
+      "approximate_95_percent_interval": [
+        1238,
+        1446
+      ],
+      "finite_estimate": true
+    }
+  ],
+  "current_match_binary_sha256": "b5e940d4409b09769478c652df25f8b38cf336807279d66e17b182c0ed5aa41f",
+  "previous_match_binary_sha256": "ac12c9028dfc74784e0057bb33345c6768936aab5c9b00a703ea474e90c5ce4d",
+  "total_rating_plies": 14102,
+  "rating_game_length_limit_draws": 0,
+  "timing": [
+    {
+      "level": 1,
+      "mean_seconds": 3.495,
+      "max_seconds": 12.66,
+      "display_updates_included": false
+    },
+    {
+      "level": 2,
+      "mean_seconds": 3.382,
+      "max_seconds": 7.549,
+      "display_updates_included": false
+    },
+    {
+      "level": 3,
+      "mean_seconds": 6.833,
+      "max_seconds": 12.118,
+      "display_updates_included": false
+    }
+  ],
+  "retained_candidate_comparison": {
+    "games": 40,
+    "wins": 16,
+    "draws": 8,
+    "losses": 16,
+    "points": 20.0,
+    "estimated_elo_difference": 0,
+    "approximate_95_percent_difference_interval": [
+      -109,
+      109
+    ],
+    "binary_sha256": {
+      "baseline": "ac12c9028dfc74784e0057bb33345c6768936aab5c9b00a703ea474e90c5ce4d",
+      "candidate": "b5e940d4409b09769478c652df25f8b38cf336807279d66e17b182c0ed5aa41f"
+    },
+    "total_plies": 5162
+  },
+  "discarded_search_candidate": {
+    "changes": [
+      "PVS",
+      "128-byte destination history",
+      "Depth-one futility pruning"
+    ],
+    "comparison": {
+      "games": 40,
+      "wins": 15,
+      "draws": 8,
+      "losses": 17,
+      "points": 19.0,
+      "estimated_elo_difference": -17,
+      "approximate_95_percent_difference_interval": [
+        -127,
+        91
+      ],
+      "binary_sha256": {
+        "baseline": "ac12c9028dfc74784e0057bb33345c6768936aab5c9b00a703ea474e90c5ce4d",
+        "candidate": "5b4bfb913c3df9b4fa16b43616c3224f82c5a4778b12c929db9a0f1c7954fea7"
+      },
+      "total_plies": 5387
+    },
+    "ratings": [
+      {
+        "level": 1,
+        "estimated_elo": 558,
+        "approximate_95_percent_interval": [
+          169,
+          805
+        ],
+        "finite_estimate": true
+      },
+      {
+        "level": 2,
+        "estimated_elo": 1090,
+        "approximate_95_percent_interval": [
+          945,
+          1221
+        ],
+        "finite_estimate": true
+      },
+      {
+        "level": 3,
+        "estimated_elo": 1251,
+        "approximate_95_percent_interval": [
+          1137,
+          1358
+        ],
+        "finite_estimate": true
+      }
+    ]
+  },
+  "validation": {
+    "native_perft_leaves": 16046250,
+    "z80_perft_leaves": 163034,
+    "incremental_score_hash_pawn_mask_mismatches": 0,
+    "assembly_native_pawn_mask_parity_cases": 100,
+    "illegal_moves_or_legal_set_or_fen_mismatches": 0,
+    "ui_regressions": "PASS",
+    "qr_decoder": "Skipped: zxing-cpp unavailable"
+  },
+  "conclusion": "No statistically clear overall Elo improvement. The retained candidate scored 20/40 against the previous engine; confidence ranges overlap.",
+  "full_rating_report": "build/chess-ratings.json",
+  "memory": {
+    "program_bytes": 26047,
+    "previous_program_bytes": 25261,
+    "arena_end_hex": "DD4C",
+    "stack_margin_to_bdos_bytes": 1722,
+    "shared_piece_square_table_ram_saved_bytes": 896
+  }
+}

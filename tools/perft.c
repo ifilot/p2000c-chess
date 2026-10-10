@@ -15,21 +15,22 @@
 
 static unsigned long hash_errors;
 static unsigned char checking = 1;
-extern int psq_tab[12][64];
 
 /* The incrementally kept hash and score against ones computed from scratch. */
 static void check_hash(void)
 {
     unsigned int kept = hash;
     unsigned char sq, p;
+    unsigned char saved_pawns[16];
     int s = 0;
+    memcpy(saved_pawns, pawn_files, 16);
     chess_rehash();
     for (sq = 0; sq < 128; sq++) {
         p = board[sq];
         if (!(sq & 0x88) && p)
-            s += psq_tab[TYPE(p) - 1 + ((p & BLACK) ? 6 : 0)][(sq + (sq & 7)) >> 1];
+            s += PIECE_SCORE(p, sq);
     }
-    if (hash != kept || s != score)
+    if (hash != kept || s != score || memcmp(saved_pawns, pawn_files, 16))
         hash_errors++;
     hash = kept;
 }
@@ -99,7 +100,7 @@ static int from_fen(const char *fen)
     score = 0;
     for (rank = 0; rank < 128; rank++)
         if (!(rank & 0x88) && board[rank])
-            score += psq_tab[TYPE(board[rank]) - 1 + ((board[rank] & BLACK) ? 6 : 0)][(rank + (rank & 7)) >> 1];
+            score += PIECE_SCORE(board[rank], rank);
     return 0;
 }
 

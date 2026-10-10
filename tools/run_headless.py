@@ -9,20 +9,22 @@ cycles, so the rest of the line is printed).
 import json
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from render import EMULATOR, HD0, IPL, ROOT, make_image
+from render import EMULATOR, HD0, IPL, make_image
 
 
 def main():
     com, marker = Path(sys.argv[1]).resolve(), sys.argv[2]
-    image = make_image(com, ROOT / "build")
-    cmd = [str(EMULATOR), "--ipl", str(IPL), "--hard-disk-0", str(HD0), "--hard-disk-1", str(image),
-           "--fast-storage", "--wait-cycles", "4000000000", "--wait-for", "A>",
-           "--send", f"F:{com.stem.upper()}\\r", "--wait-for", marker, "--run", "1000000",
-           *sys.argv[3:], "--output", "json"]
-    state = json.loads(subprocess.run(cmd, capture_output=True, text=True).stdout)
+    with tempfile.TemporaryDirectory(prefix="p2000c-headless-") as tmp:
+        image = make_image(com, Path(tmp))
+        cmd = [str(EMULATOR), "--ipl", str(IPL), "--hard-disk-0", str(HD0), "--hard-disk-1", str(image),
+               "--fast-storage", "--wait-cycles", "4000000000", "--wait-for", "A>",
+               "--send", f"F:{com.stem.upper()}\\r", "--wait-for", marker, "--run", "1000000",
+               *sys.argv[3:], "--output", "json"]
+        state = json.loads(subprocess.run(cmd, capture_output=True, text=True).stdout)
     for row in state["screen"]:
         if row.strip():
             print(row.rstrip())

@@ -39,7 +39,11 @@ def emulate(actions, timeout=1800, dump=None):
            "--wait-for", "A>", "--send", "F:SCHAKEN\\r", "--wait-for", "om verder te gaan", "--send", " ",
            "--wait-for", "Sterkte van de computer", *actions, "--run", "400000",
            *(["--dump-graphics", str(dump)] if dump else []), "--output", "json"]
-    state = json.loads(subprocess.run(cmd, capture_output=True, text=True, timeout=timeout).stdout)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    try:
+        state = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"emulator exit {result.returncode}: {result.stderr[:2000]}") from error
     flat = "".join(state["screen"])
     rows = [flat[r * 64 + PANEL:(r + 1) * 64] for r in range(21)]
     return state, rows

@@ -36,6 +36,8 @@ jobs:
           pip install zxing-cpp pillow
           make perft
           make selfplay
+          make searchtest
+          python3 tools/test_rating.py
           make qrtest
 
       - name: Pull the Z88DK toolchain image

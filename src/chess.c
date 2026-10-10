@@ -21,6 +21,12 @@ int score;
 unsigned int hash;
 unsigned char mover_in_check = 1;
 unsigned int hist_len;
+unsigned char pawn_files[16];
+unsigned char pawn_present[2];              /* refreshed by endgame evaluation */
+const unsigned char pawn_rank_bits[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };
+#define PAWN_INDEX(p, sq) (((p) & BLACK ? 8 : 0) + FILE_OF(sq))
+#define PAWN_TOGGLE(p, sq) do { if (TYPE(p) == PAWN) \
+    pawn_files[PAWN_INDEX(p, sq)] ^= pawn_rank_bits[RANK_OF(sq)]; } while (0)
 
 const int piece_value[7] = { 0, 100, 320, 330, 500, 900, 0 };
 static const unsigned char PHASE[7] = { 0, 0, 1, 1, 2, 4, 0 };
@@ -77,24 +83,23 @@ static const signed char PST[5][64] = {
 
 /* The big arrays: on the P2000C they lie past the program (memory.asm). */
 #ifdef __SDCC
-extern int psq_tab[12][64];
+extern int psq_tab[5][64];
 extern unsigned int zobrist[12][64];
 extern unsigned int zobrist_castle[16];
 extern unsigned int zobrist_ep[8];
 #else
 undo_t hist[MAX_HIST];
 move_t moves[MOVE_STACK];
-int psq_tab[12][64];
+int psq_tab[5][64];
 unsigned int zobrist[12][64];
 unsigned int zobrist_castle[16];
 unsigned int zobrist_ep[8];
 #endif
 
-/* Value + square bonus with sign (White positive), per piece and 0..63
- * square; index 0-5 White pawn..king, 6-11 Black; kings count 0 here.
- * Built by chess_init(); rules.asm reads it. */
+/* White's material + square bonuses, pawn..queen. Black mirrors and
+ * negates these scores; kings are evaluated by cpu.c. */
 #define PIDX(p) (TYPE(p) - 1 + (((p) & BLACK) ? 6 : 0))
-#define PSQ(p, sq) psq_tab[PIDX(p)][SQ64(sq)]
+#define PSQ(p, sq) PIECE_SCORE(p, sq)
 
 /* Zobrist keys: one per piece and square, castling rights, en-passant
  * file and side to move; the position key is the XOR of what applies. */
@@ -135,10 +140,9 @@ void chess_init(void)
         board[sq] = EMPTY;
     }
     for (i = 0; i < 64; i++)
-        for (t = PAWN; t <= KING; t++) {
-            v = t == KING ? 0 : piece_value[t];
-            psq_tab[t - 1][i] = t == KING ? 0 : v + PST[t - 1][i ^ 56];
-            psq_tab[t + 5][i] = t == KING ? 0 : -(v + PST[t - 1][i]);
+        for (t = PAWN; t <= QUEEN; t++) {
+            v = piece_value[t];
+            psq_tab[t - 1][i] = v + PST[t - 1][i ^ 56];
         }
     for (i = 0; i < 239; i++)
         aligned[i] = 0;
@@ -154,6 +158,7 @@ void chess_init(void)
 
     score = 0;
     phase = 0;
+    for (i = 0; i < 16; i++) pawn_files[i] = 0;
     hash = 0;
     for (i = 0; i < 8; i++) {
         board[SQ(i, 0)] = WHITE | BACK_RANK[i];
@@ -167,6 +172,7 @@ void chess_init(void)
         score += PSQ(board[sq], sq);
         phase += PHASE[TYPE(board[sq])];
         hash ^= ZKEY(board[sq], sq);
+        PAWN_TOGGLE(board[sq], sq);
     }
     king_sq[0] = SQ(4, 0);
     king_sq[1] = SQ(4, 7);
@@ -182,10 +188,13 @@ void chess_init(void)
 void chess_rehash(void)
 {
     unsigned char sq;
+    for (sq = 0; sq < 16; sq++) pawn_files[sq] = 0;
     hash = zobrist_castle[castle] ^ ZEP(ep) ^ (side == BLACK ? ZOBRIST_SIDE : 0);
     for (sq = 0; sq < 128; sq++)
-        if (!OFFBOARD(sq) && board[sq])
+        if (!OFFBOARD(sq) && board[sq]) {
             hash ^= ZKEY(board[sq], sq);
+            PAWN_TOGGLE(board[sq], sq);
+        }
 }
 
 #ifndef __SDCC
@@ -395,15 +404,18 @@ unsigned char make_move(const move_t *m)
     u->hash = hash;
 
     halfmove++;
+    PAWN_TOGGLE(p, from);
     score -= PSQ(p, from);
     hash ^= ZKEY(p, from) ^ ZEP(ep) ^ zobrist_castle[castle] ^ ZOBRIST_SIDE;
     if (flags & MF_EP) {
         t = me == WHITE ? to - 16 : to + 16;
         captured = board[t];
+        PAWN_TOGGLE(captured, t);
         board[t] = EMPTY;
         score -= PSQ(captured, t);
         hash ^= ZKEY(captured, t);
     } else if (captured) {
+        PAWN_TOGGLE(captured, to);
         score -= PSQ(captured, to);
         hash ^= ZKEY(captured, to);
         phase -= PHASE[TYPE(captured)];
@@ -417,6 +429,7 @@ unsigned char make_move(const move_t *m)
         halfmove = 0;                       /* still a pawn move */
     }
     board[to] = p;
+    PAWN_TOGGLE(p, to);
     score += PSQ(p, to);
     hash ^= ZKEY(p, to);
 
@@ -469,9 +482,12 @@ void unmake_move(void)
     unsigned char me = OTHER(side), p = board[to];
 
     side = me;
+    PAWN_TOGGLE(p, to);
     if (flags & MF_PROMO)
         p = me | PAWN;
     board[from] = p;
+    PAWN_TOGGLE(p, from);
+    PAWN_TOGGLE(u->captured, (flags & MF_EP) ? (me == WHITE ? to - 16 : to + 16) : to);
     if (flags & MF_EP) {
         board[to] = EMPTY;
         board[me == WHITE ? to - 16 : to + 16] = u->captured;
